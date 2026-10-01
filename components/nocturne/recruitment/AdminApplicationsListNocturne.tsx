@@ -1,0 +1,209 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowUpDown, ChevronDown, Search } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
+import { applicationStatusLabel, APPLICATION_STATUS_OPTIONS } from "@/lib/recruitment/constants";
+import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
+import {
+  AdminPageHeading,
+  KbdHint,
+  StatusPill,
+  adminPanelClass,
+} from "@/components/nocturne/recruitment/AdminShellNocturne";
+import type { ApplicationSummary } from "@/types/recruitment";
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+/** Shared look for the toolbar's search, select and sort controls. */
+const controlClass =
+  "h-10 rounded-nocturne-control border border-nocturne-border-strong bg-nocturne-card text-sm text-nocturne-ink outline-none transition-[border-color,box-shadow] hover:border-nocturne-ink-muted focus-visible:border-nocturne-accent focus-visible:ring-3 focus-visible:ring-nocturne-accent/20";
+
+const GRID = "xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_auto]";
+
+export function AdminApplicationsListNocturne({
+  jobTitle,
+  applications,
+}: {
+  jobTitle: string;
+  applications: ApplicationSummary[];
+}) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [newestFirst, setNewestFirst] = useState(true);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // "/" jumps to the search box, unless already typing somewhere.
+  useEffect(() => {
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = applications.filter(
+      (a) =>
+        (statusFilter === "all" || a.status === statusFilter) &&
+        (q === "" || a.candidateName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)),
+    );
+    list = [...list].sort((a, b) =>
+      newestFirst ? b.appliedAt.localeCompare(a.appliedAt) : a.appliedAt.localeCompare(b.appliedAt),
+    );
+    return list;
+  }, [applications, query, statusFilter, newestFirst]);
+
+  return (
+    <div>
+      <AdminPageHeading
+        title={jobTitle}
+        lead={
+          <>
+            <span className="nocturne-mono font-medium text-nocturne-ink">{applications.length}</span> application
+            {applications.length === 1 ? "" : "s"}
+          </>
+        }
+      />
+
+      <div className="mt-5.5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative w-full sm:w-72">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-nocturne-ink-faint"
+            aria-hidden
+          />
+          <input
+            ref={searchRef}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search candidates…"
+            aria-label="Search candidates"
+            aria-keyshortcuts="/"
+            className={cn(controlClass, "w-full pr-10 pl-10 placeholder:text-nocturne-ink-faint [&::-webkit-search-cancel-button]:hidden")}
+          />
+          <span className="absolute top-1/2 right-3 -translate-y-1/2">
+            <KbdHint>/</KbdHint>
+          </span>
+        </div>
+        <div className="flex gap-3 sm:ml-auto">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter by status"
+              className={cn(controlClass, "w-full appearance-none pr-9 pl-3 font-semibold")}
+            >
+              <option value="all">All Statuses</option>
+              {APPLICATION_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-nocturne-ink-faint"
+              aria-hidden
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setNewestFirst((v) => !v)}
+            className={cn(controlClass, "flex shrink-0 items-center gap-1.5 px-3 font-semibold")}
+          >
+            <ArrowUpDown className="size-3.5 text-nocturne-ink-faint" aria-hidden />
+            {newestFirst ? "Newest first" : "Oldest first"}
+          </button>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className={cn(adminPanelClass, "mt-3 px-6 py-12 text-center")}>
+          <p className="font-nocturne-display text-xl font-semibold text-nocturne-ink">
+            {applications.length === 0 ? "No applications yet" : "Nothing matches"}
+          </p>
+          <p className="mt-1.5 text-sm text-nocturne-ink-muted">
+            {applications.length === 0 ? "No one has applied yet." : "No applications match your filters."}
+          </p>
+        </div>
+      ) : (
+        <div className={cn(adminPanelClass, "mt-3 overflow-hidden")}>
+          <div
+            className={cn(
+              "hidden items-center gap-4 border-b border-nocturne-border bg-nocturne-table-head px-5 py-3 text-[0.6875rem] font-bold tracking-widest text-nocturne-ink-muted uppercase xl:grid",
+              GRID,
+            )}
+            aria-hidden
+          >
+            <span>Candidate</span>
+            <span>Experience</span>
+            <span>Applied</span>
+            <span>Status</span>
+            <span className="w-36" />
+          </div>
+          <ul>
+            {filtered.map((app) => (
+              <li
+                key={app.id}
+                className={cn(
+                  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b border-nocturne-border px-4 py-4 last:border-b-0 sm:px-5 xl:py-3",
+                  GRID,
+                )}
+              >
+                <div className="min-w-0">
+                  <Link
+                    href={`/admin/applications/${app.id}`}
+                    className="rounded-sm text-[0.9375rem] font-bold text-nocturne-ink hover:text-nocturne-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent"
+                  >
+                    {app.candidateName}
+                  </Link>
+                  <p className="mt-0.5 truncate text-[0.8125rem] text-nocturne-ink-muted">{app.email}</p>
+                </div>
+
+                {/* Mobile: experience + applied date share one line under the name. */}
+                <div className="col-span-2 row-start-2 flex flex-wrap gap-x-4 text-[0.8125rem] text-nocturne-ink-muted xl:contents">
+                  <span>
+                    {app.experienceYears != null ? (
+                      <>
+                        <span className="nocturne-mono text-nocturne-ink">{app.experienceYears}</span> years experience
+                      </>
+                    ) : (
+                      <span className="text-nocturne-ink-faint">—</span>
+                    )}
+                  </span>
+                  <span>
+                    <span className="xl:hidden">Applied </span>
+                    <span className="nocturne-mono text-nocturne-ink">{formatDate(app.appliedAt)}</span>
+                  </span>
+                </div>
+
+                <div className="col-start-2 row-start-1 justify-self-end xl:col-start-auto xl:row-start-auto xl:justify-self-start">
+                  <StatusPill kind="application" status={app.status}>
+                    {applicationStatusLabel(app.status)}
+                  </StatusPill>
+                </div>
+
+                <div className="col-span-2 xl:col-span-1 xl:w-36 xl:text-right">
+                  <Link
+                    href={`/admin/applications/${app.id}`}
+                    className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 px-3" })}
+                  >
+                    View Application
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

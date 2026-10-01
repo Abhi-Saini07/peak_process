@@ -1,0 +1,312 @@
+@import "tailwindcss";
+
+@theme {
+  --breakpoint-xl: 80rem;
+  --breakpoint-tablet: 56.25rem;
+
+  /* ================================================================
+     Nocturne. Light values here; dark values override the same names
+     under :root[data-theme="dark"] (set before first paint by the
+     inline script in app/layout.tsx), so components never branch on
+     theme. All text pairs checked for WCAG AA in both modes (>= 4.5:1;
+     control borders >= 3:1).
+     ================================================================ */
+  --color-nocturne-bg: #f3f5fa;
+  --color-nocturne-side: #ffffff; /* app sidebar */
+  --color-nocturne-card: #ffffff; /* cards, inputs, menus, tables */
+  --color-nocturne-raised: #eef1f8; /* hover, active nav, raised chips */
+  --color-nocturne-surface: #ebeff8; /* tinted panels and hero bands */
+  --color-nocturne-surface-2: #e1e7f3;
+  --color-nocturne-skeleton: #e6eaf3;
+  --color-nocturne-table-head: #f7f8fc;
+  --color-nocturne-border: #e1e5ef;
+  --color-nocturne-border-strong: #8b93aa;
+  --color-nocturne-ink: #121829;
+  --color-nocturne-ink-muted: #4c5672;
+  --color-nocturne-ink-faint: #5c6680;
+  --color-nocturne-accent: #4b5bd7; /* periwinkle, deepened for light */
+  --color-nocturne-accent-hover: #3d4bc0;
+  --color-nocturne-accent-text: #3f4fcc;
+  --color-nocturne-on-accent: #ffffff;
+  --color-nocturne-accent-tint: #e6e9fb;
+  --color-nocturne-gold: #8a5a00; /* amber: needs attention, drafts */
+  --color-nocturne-gold-tint: #fbf0da;
+  --color-nocturne-success: #17784c; /* mint */
+  --color-nocturne-success-tint: #e1f3ea;
+  --color-nocturne-error: #b3261e;
+  --color-nocturne-error-tint: #fbe7e6;
+  /* Deep brand surface (login mark, active tile) — same in both modes. */
+  --color-nocturne-forest: #151b2b;
+  --color-nocturne-forest-deep: #0e1320;
+  --color-nocturne-forest-raised: #1c2438;
+  --color-nocturne-forest-active: #232c42;
+  --color-nocturne-forest-line: #2a3450;
+  --color-nocturne-forest-ink: #e8ecf5;
+  --color-nocturne-forest-muted: #9aa5bd;
+  --color-nocturne-forest-gold: #8fa2ff;
+
+  --radius-nocturne-card: 0.875rem;
+  --radius-nocturne-control: 0.625rem;
+  --radius-nocturne-pill: 9999px;
+
+  --shadow-nocturne-rest: 0 1px 2px rgb(var(--nocturne-shadow-rgb) / calc(0.06 * var(--nocturne-shadow-k)));
+  --shadow-nocturne-lift: 0 16px 36px -18px rgb(var(--nocturne-shadow-rgb) / calc(0.35 * var(--nocturne-shadow-k))), 0 2px 6px -2px rgb(var(--nocturne-shadow-rgb) / calc(0.08 * var(--nocturne-shadow-k)));
+  --shadow-nocturne-menu: 0 18px 40px -12px rgb(var(--nocturne-shadow-rgb) / calc(0.3 * var(--nocturne-shadow-k))), 0 2px 6px rgb(var(--nocturne-shadow-rgb) / calc(0.1 * var(--nocturne-shadow-k)));
+  --shadow-nocturne-glow: 0 0 0 1px rgb(143 162 255 / 0.25), 0 8px 30px -10px rgb(143 162 255 / 0.35);
+
+  --font-nocturne-display: var(--font-sora), system-ui, sans-serif;
+  --font-nocturne-sans: var(--font-plus-jakarta), system-ui, sans-serif;
+  --font-nocturne-ui: var(--font-plus-jakarta), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-nocturne-mono: var(--font-sora), ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: light;
+  --nocturne-shadow-rgb: 18 24 41;
+  --nocturne-shadow-k: 1;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-nocturne-bg: #0e1320;
+  --color-nocturne-side: #121827;
+  --color-nocturne-card: #151b2b;
+  --color-nocturne-raised: #1c2438;
+  --color-nocturne-surface: #1c2438;
+  --color-nocturne-surface-2: #232c42;
+  --color-nocturne-skeleton: #1f2840;
+  --color-nocturne-table-head: #121827;
+  --color-nocturne-border: #232c42;
+  --color-nocturne-border-strong: #5f6d96;
+  --color-nocturne-ink: #e8ecf5;
+  --color-nocturne-ink-muted: #9aa5bd;
+  --color-nocturne-ink-faint: #8792ac;
+  --color-nocturne-accent: #8fa2ff;
+  --color-nocturne-accent-hover: #a6b5ff;
+  --color-nocturne-accent-text: #a9b7ff;
+  --color-nocturne-on-accent: #0e1320;
+  --color-nocturne-accent-tint: #1e2748;
+  --color-nocturne-gold: #f0b860;
+  --color-nocturne-gold-tint: #2e2614;
+  --color-nocturne-success: #4cc38a;
+  --color-nocturne-success-tint: #12302a;
+  --color-nocturne-error: #f28b82;
+  --color-nocturne-error-tint: #3a1d1d;
+  --nocturne-shadow-rgb: 0 0 0;
+  --nocturne-shadow-k: 2.4;
+}
+
+body {
+  background: var(--color-nocturne-bg);
+  color: var(--color-nocturne-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-nocturne-accent-tint);
+  color: var(--color-nocturne-ink);
+}
+
+/* ================================================================
+   Nocturne type scale (careers). One dominant page title in Fraunces;
+   everything else in Geist. Colour is applied separately so each step
+   works on any surface.
+   ================================================================ */
+@utility nocturne-type-display {
+  font-family: var(--font-nocturne-display);
+  font-weight: 600;
+  font-size: clamp(2.375rem, 1.55rem + 3.3vw, 3.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+@utility nocturne-type-title {
+  font-family: var(--font-nocturne-display);
+  font-weight: 600;
+  font-size: clamp(2rem, 1.45rem + 2.2vw, 2.75rem);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+@utility nocturne-type-heading {
+  font-family: var(--font-nocturne-ui);
+  font-weight: 600;
+  font-size: 1.125rem;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+@utility nocturne-type-card-title {
+  font-family: var(--font-nocturne-ui);
+  font-weight: 600;
+  font-size: 1.1875rem;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+@utility nocturne-type-lead {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  @media (width >= 40rem) {
+    font-size: 1.125rem;
+  }
+}
+
+@utility nocturne-type-body {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+@utility nocturne-type-meta {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+@utility nocturne-type-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ================================================================
+   Nocturne careers route transitions (React <ViewTransition>, see
+   NocturneCareersFrame). Forward = deeper into list → detail → apply.
+   Short, small offsets: this should read as continuity, not motion.
+   ================================================================ */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(nocturne-careers-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(nocturne-careers-header) {
+  display: none;
+}
+::view-transition-new(nocturne-careers-header) {
+  animation: none;
+}
+
+::view-transition-old(.nocturne-nav-forward) {
+  --nocturne-slide: -24px;
+  animation:
+    140ms ease-in both nocturne-fade reverse,
+    280ms cubic-bezier(0.4, 0, 0.2, 1) both nocturne-slide reverse;
+}
+::view-transition-new(.nocturne-nav-forward) {
+  --nocturne-slide: 24px;
+  animation:
+    200ms ease-out 100ms both nocturne-fade,
+    320ms cubic-bezier(0.22, 1, 0.36, 1) both nocturne-slide;
+}
+::view-transition-old(.nocturne-nav-back) {
+  --nocturne-slide: 24px;
+  animation:
+    140ms ease-in both nocturne-fade reverse,
+    280ms cubic-bezier(0.4, 0, 0.2, 1) both nocturne-slide reverse;
+}
+::view-transition-new(.nocturne-nav-back) {
+  --nocturne-slide: -24px;
+  animation:
+    200ms ease-out 100ms both nocturne-fade,
+    320ms cubic-bezier(0.22, 1, 0.36, 1) both nocturne-slide;
+}
+
+@keyframes nocturne-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes nocturne-slide {
+  from {
+    translate: var(--nocturne-slide) 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+/* Reduced motion: keep a quick crossfade, drop all movement. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-name: nocturne-fade !important;
+    animation-duration: 120ms !important;
+    animation-delay: 0s !important;
+  }
+  ::view-transition-old(*) {
+    animation-direction: reverse !important;
+  }
+  /* The pinned header never animates. */
+  ::view-transition-new(nocturne-careers-header) {
+    animation: none !important;
+  }
+}
+
+/* ================================================================
+   Nocturne loading skeletons: a soft surface block with a slow sheen.
+   ================================================================ */
+.nocturne-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-nocturne-skeleton);
+}
+.nocturne-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  translate: -100% 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-nocturne-card) 55%, transparent),
+    transparent
+  );
+  animation: nocturne-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes nocturne-shimmer {
+  to {
+    translate: 100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nocturne-skeleton::after {
+    animation: none;
+    display: none;
+  }
+}
+
+/* Skeleton -> content hand-off (and untyped navigations such as the
+   browser back button): the placeholder leaves quickly, the page arrives
+   with a short fade and a small upward settle. */
+::view-transition-old(.nocturne-reveal-out) {
+  animation: 120ms ease-out both nocturne-fade reverse;
+}
+::view-transition-new(.nocturne-reveal-in) {
+  --nocturne-rise: 8px;
+  animation:
+    220ms ease-out 80ms both nocturne-fade,
+    320ms cubic-bezier(0.22, 1, 0.36, 1) both nocturne-rise;
+}
+@keyframes nocturne-rise {
+  from {
+    translate: 0 var(--nocturne-rise);
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+/* Nocturne: numbers, dates and counts. */
+@utility nocturne-mono {
+  font-family: var(--font-nocturne-mono);
+  font-variant-numeric: tabular-nums;
+}

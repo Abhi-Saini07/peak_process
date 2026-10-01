@@ -1,0 +1,382 @@
+// Peak Process Partners — Onboarding Platform
+// Prisma schema. This is the ORM-level mirror of db/schema.sql — see that
+// file's header comments for the reasoning behind each modeling decision
+// (why there's no onboarding_steps/checklist/users table, why completion %
+// isn't stored, why Aadhaar/PAN/UAN are ciphertext columns, etc).
+//
+// Database: PostgreSQL (Neon in production). This file plus the SQL in
+// prisma/migrations/ are the source of truth; the migration also carries
+// the CHECK constraints Prisma's DSL can't express. The original MySQL DDL
+// and migrations are kept for reference in db/legacy-mysql/.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Neon: DATABASE_URL is the pooled connection (host contains "-pooler"),
+  // DIRECT_URL the direct one, used by `prisma migrate`. Locally both can
+  // be the same URL.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum EmployeeStatus {
+  in_progress
+  submitted
+}
+
+enum Gender {
+  female
+  male
+  non_binary        @map("non-binary")
+  prefer_not_to_say @map("prefer-not-to-say")
+}
+
+enum ReferenceType {
+  primary
+  secondary
+}
+
+enum CoverageType {
+  self
+  self_spouse @map("self-spouse")
+  self_family @map("self-family")
+}
+
+enum DocumentType {
+  identityProof
+  addressProof
+  resume
+  educationalCertificates
+  offerLetter
+}
+
+enum DocumentStatus {
+  pending
+  uploading
+  uploaded
+  error
+  provided
+}
+
+/// One row per onboarding session — the anchor/identity row, created the
+/// first time a browser hits the app (before any form data exists) and
+/// looked up by an httpOnly session cookie. There is no login in the
+/// current app, so this row *is* the "user" for now.
+model Employee {
+  id                  String         @id @default(uuid()) @db.Char(36)
+  sessionToken        String         @unique @default(uuid()) @map("session_token") @db.Char(36)
+  fullName            String?        @map("full_name") @db.VarChar(255)
+  status              EmployeeStatus @default(in_progress)
+  submissionReference String?        @unique @map("submission_reference") @db.VarChar(32)
+  submittedAt         DateTime?      @map("submitted_at") @db.Timestamptz(3)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  personalInformation PersonalInformation?
+  references          EmployeeReference[]
+  emergencyContact    EmergencyContact?
+  healthInsurance     HealthInsurance?
+  documents           EmployeeDocument[]
+
+  @@map("employees")
+}
+
+/// 1:1 with Employee — "Personal Information" step.
+model PersonalInformation {
+  employeeId    String    @id @map("employee_id") @db.Char(36)
+  firstName     String?   @map("first_name") @db.VarChar(100)
+  lastName      String?   @map("last_name") @db.VarChar(100)
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  gender        Gender?
+  personalEmail String?   @map("personal_email") @db.VarChar(255)
+  phone         String?   @db.VarChar(20)
+  homeAddress   String?   @map("home_address") @db.VarChar(500)
+
+  /// AES-256-GCM ciphertext (see lib/security/encryption.ts) — never read
+  /// or written as plaintext. Stored as bytea.
+  aadhaarNumberEnc Bytes? @map("aadhaar_number_enc")
+  panNumberEnc     Bytes? @map("pan_number_enc")
+  uanNumberEnc     Bytes? @map("uan_number_enc")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("personal_information")
+}
+
+/// Exactly two fixed slots per employee ("primary" / "secondary") —
+/// modeled as a typed child row rather than ten flat columns, enforced via
+/// the unique key on (employeeId, referenceType).
+model EmployeeReference {
+  id            String        @id @default(uuid()) @db.Char(36)
+  employeeId    String        @map("employee_id") @db.Char(36)
+  referenceType ReferenceType @map("reference_type")
+  name          String?       @db.VarChar(150)
+  relationship  String?       @db.VarChar(100)
+  company       String?       @db.VarChar(150)
+  email         String?       @db.VarChar(255)
+  phone         String?       @db.VarChar(20)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, referenceType], map: "uq_employee_references_type")
+  @@index([employeeId], map: "idx_employee_references_employee")
+  @@map("employee_references")
+}
+
+/// 1:1 with Employee — "Emergency Contact" step.
+model EmergencyContact {
+  employeeId        String   @id @map("employee_id") @db.Char(36)
+  name              String?  @db.VarChar(150)
+  relationship      String?  @db.VarChar(100)
+  primaryPhone      String?  @map("primary_phone") @db.VarChar(20)
+  secondaryPhone    String?  @map("secondary_phone") @db.VarChar(20)
+  sameAsHomeAddress Boolean  @default(false) @map("same_as_home_address")
+  address           String?  @db.VarChar(500)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("emergency_contacts")
+}
+
+/// 1:1 with Employee — "Health Insurance" step (coverage + nominee only;
+/// dependents are a separate child table below).
+model HealthInsurance {
+  employeeId          String        @id @map("employee_id") @db.Char(36)
+  coverageType        CoverageType? @map("coverage_type")
+  nomineeName         String?       @map("nominee_name") @db.VarChar(150)
+  nomineeRelationship String?       @map("nominee_relationship") @db.VarChar(100)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  employee   Employee                   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dependents HealthInsuranceDependent[]
+
+  @@map("health_insurance")
+}
+
+/// Up to 5 per employee (enforced in the API route, not the DB — see
+/// schema.sql comment: CHECK constraints can't express cross-row
+/// cardinality rules).
+model HealthInsuranceDependent {
+  id           String   @id @default(uuid()) @db.Char(36)
+  employeeId   String   @map("employee_id") @db.Char(36)
+  name         String   @db.VarChar(150)
+  relationship String   @db.VarChar(100)
+  dateOfBirth  DateTime @map("date_of_birth") @db.Date
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  healthInsurance HealthInsurance @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_health_insurance_dependents_employee")
+  @@map("health_insurance_dependents")
+}
+
+/// One row per document type per employee ("Documents" step). File bytes
+/// are never stored here — storagePath points at an object-storage
+/// key/URL once that's wired up (see write-up).
+model EmployeeDocument {
+  id           String         @id @default(uuid()) @db.Char(36)
+  employeeId   String         @map("employee_id") @db.Char(36)
+  documentType DocumentType   @map("document_type")
+  fileName     String?        @map("file_name") @db.VarChar(255)
+  fileSize     Int?           @map("file_size") @db.Integer
+  mimeType     String?        @map("mime_type") @db.VarChar(127)
+  storagePath  String?        @map("storage_path") @db.VarChar(1024)
+  status       DocumentStatus @default(pending)
+  errorMessage String?        @map("error_message") @db.VarChar(500)
+  uploadedAt   DateTime?      @map("uploaded_at") @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, documentType], map: "uq_employee_documents_type")
+  @@index([employeeId], map: "idx_employee_documents_employee")
+  @@map("employee_documents")
+}
+
+// ============================================================================
+// Recruitment (jobs + applications) — additive, independent of the models
+// above. A job applicant is NOT an Employee: nothing here relates to
+// Employee or its children. See db/schema.sql's recruitment section header
+// for the full reasoning.
+// ============================================================================
+
+enum EmploymentType {
+  full_time
+  part_time
+  contract
+  internship
+}
+
+enum WorkMode {
+  onsite
+  hybrid
+  remote
+}
+
+enum JobStatus {
+  draft
+  published
+  closed
+}
+
+enum ApplicationStatus {
+  applied
+  under_review
+  shortlisted
+  interview
+  selected
+  rejected
+}
+
+enum ApplicationDocumentType {
+  resume
+  other
+}
+
+/// HR/Admin profile. Sign-in itself is handled by Clerk (lib/server/adminSession.ts):
+/// a signed-in Clerk user whose verified email is in ADMIN_EMAILS gets a row
+/// here on first visit, linked by clerkUserId. The row exists so jobs and
+/// status changes can keep pointing at "who did it".
+model AdminUser {
+  id          String   @id @default(uuid()) @db.Char(36)
+  clerkUserId String?  @unique @map("clerk_user_id") @db.VarChar(64)
+  email       String   @unique @db.VarChar(255)
+  fullName    String   @map("full_name") @db.VarChar(150)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  jobsCreated   Job[]
+  statusChanges ApplicationStatusHistory[]
+
+  @@map("admin_users")
+}
+
+/// One row per job opening. requiredSkills/preferredSkills are JSON string
+/// arrays (tag/chip UI), not flat text. No slug: the app routes by id.
+model Job {
+  id                 String         @id @default(uuid()) @db.Char(36)
+  title              String         @db.VarChar(200)
+  department         String?        @db.VarChar(150)
+  location           String?        @db.VarChar(150)
+  employmentType     EmploymentType @map("employment_type")
+  workMode           WorkMode       @map("work_mode")
+  experienceMinYears Int?           @map("experience_min_years") @db.SmallInt
+  experienceMaxYears Int?           @map("experience_max_years") @db.SmallInt
+  salaryMin          Int?           @map("salary_min") @db.Integer
+  salaryMax          Int?           @map("salary_max") @db.Integer
+  salaryPublic       Boolean        @default(false) @map("salary_public")
+  overview           String?        @db.Text
+  responsibilities   String?        @db.Text
+  requirements       String?        @db.Text
+  requiredSkills     Json?          @map("required_skills")
+  preferredSkills    Json?          @map("preferred_skills")
+  education          String?        @db.VarChar(255)
+  benefits           String?        @db.Text
+  deadline           DateTime?      @db.Date
+  status             JobStatus      @default(draft)
+  createdBy          String?        @map("created_by") @db.Char(36)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  publishedAt        DateTime?      @map("published_at") @db.Timestamptz(3)
+  closedAt           DateTime?      @map("closed_at") @db.Timestamptz(3)
+
+  creator      AdminUser?       @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  applications JobApplication[]
+
+  @@index([status], map: "idx_jobs_status")
+  @@index([deadline], map: "idx_jobs_deadline")
+  @@map("jobs")
+}
+
+/// One row per person; found-or-created by email so one candidate can apply
+/// to multiple jobs (see JobApplication) — never linked to a job directly.
+model Candidate {
+  id              String   @id @default(uuid()) @db.Char(36)
+  firstName       String   @map("first_name") @db.VarChar(100)
+  lastName        String   @map("last_name") @db.VarChar(100)
+  email           String   @unique @db.VarChar(255)
+  phone           String?  @db.VarChar(20)
+  location        String?  @db.VarChar(150)
+  experienceYears Int?     @map("experience_years") @db.SmallInt
+  education       String?  @db.VarChar(255)
+  linkedinUrl     String?  @map("linkedin_url") @db.VarChar(500)
+  portfolioUrl    String?  @map("portfolio_url") @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  applications JobApplication[]
+
+  @@map("candidates")
+}
+
+/// One row per (job, candidate) — the unique key blocks double-applying to
+/// the same job. Only ever holds the CURRENT status; see
+/// ApplicationStatusHistory for the transition log.
+model JobApplication {
+  id          String            @id @default(uuid()) @db.Char(36)
+  jobId       String            @map("job_id") @db.Char(36)
+  candidateId String            @map("candidate_id") @db.Char(36)
+  status      ApplicationStatus @default(applied)
+  coverLetter String?           @map("cover_letter") @db.Text
+  appliedAt   DateTime          @default(now()) @map("applied_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  job           Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate     Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  documents     ApplicationDocument[]
+  statusHistory ApplicationStatusHistory[]
+
+  @@unique([jobId, candidateId], map: "uq_job_applications_job_candidate")
+  @@index([jobId], map: "idx_job_applications_job")
+  @@index([candidateId], map: "idx_job_applications_candidate")
+  @@index([status], map: "idx_job_applications_status")
+  @@map("job_applications")
+}
+
+/// Resume/other uploads, scoped to the application (not the candidate) — see
+/// db/schema.sql for why. File bytes live on local disk
+/// (lib/server/fileStorage.ts); storagePath is never a public URL.
+model ApplicationDocument {
+  id            String                  @id @default(uuid()) @db.Char(36)
+  applicationId String                  @map("application_id") @db.Char(36)
+  documentType  ApplicationDocumentType @map("document_type")
+  fileName      String                  @map("file_name") @db.VarChar(255)
+  fileSize      Int                     @map("file_size") @db.Integer
+  mimeType      String                  @map("mime_type") @db.VarChar(127)
+  storagePath   String                  @map("storage_path") @db.VarChar(1024)
+  uploadedAt    DateTime                @default(now()) @map("uploaded_at") @db.Timestamptz(3)
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId], map: "idx_application_documents_application")
+  @@map("application_documents")
+}
+
+/// Append-only log of every status transition. oldStatus is NULL only for
+/// the very first row (the "applied" state recorded at submission).
+model ApplicationStatusHistory {
+  id               String             @id @default(uuid()) @db.Char(36)
+  applicationId    String             @map("application_id") @db.Char(36)
+  oldStatus        ApplicationStatus? @map("old_status")
+  newStatus        ApplicationStatus  @map("new_status")
+  changedByAdminId String?            @map("changed_by_admin_id") @db.Char(36)
+  changedAt        DateTime           @default(now()) @map("changed_at") @db.Timestamptz(3)
+
+  application    JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedByAdmin AdminUser?     @relation(fields: [changedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId], map: "idx_application_status_history_application")
+  @@map("application_status_history")
+}
