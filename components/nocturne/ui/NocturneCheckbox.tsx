@@ -6,8 +6,8 @@ interface NocturneCheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   label: string;
 }
 
-/** Circular rather than square — a small, deliberate echo of the curve motif
- *  that distinguishes Nocturne's controls from the other two designs. */
+/** Nocturne checkbox: a soft 6px square on the field surface with the
+ *  strong control border; checked fills with the accent. */
 export const NocturneCheckbox = forwardRef<HTMLInputElement, NocturneCheckboxProps>(function NocturneCheckbox(
   { label, className, id, name, ...props },
   ref,
@@ -21,7 +21,7 @@ export const NocturneCheckbox = forwardRef<HTMLInputElement, NocturneCheckboxPro
           type="checkbox"
           id={inputId}
           name={name}
-          className="peer size-full cursor-pointer appearance-none rounded-full border border-nocturne-ink-faint bg-nocturne-card transition-colors checked:border-nocturne-accent checked:bg-nocturne-accent focus-visible:outline-2 focus-visible:outline-nocturne-accent focus-visible:outline-offset-2"
+          className="peer size-full cursor-pointer appearance-none rounded-[0.375rem] border border-nocturne-border-strong bg-nocturne-card transition-[background-color,border-color,box-shadow] duration-150 in-data-[theme=dark]:bg-nocturne-bg hover:border-nocturne-ink-muted checked:border-nocturne-accent checked:bg-nocturne-accent in-data-[theme=dark]:checked:bg-nocturne-accent focus-visible:shadow-nocturne-glow focus-visible:outline-2 focus-visible:outline-nocturne-accent focus-visible:outline-offset-2"
           {...props}
         />
         <Check

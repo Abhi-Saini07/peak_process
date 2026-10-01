@@ -22,7 +22,7 @@ export function NocturneFieldWrapper({
 }: NocturneFieldWrapperProps) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={htmlFor} className="text-[0.8125rem] font-medium text-nocturne-ink-muted">
+      <label htmlFor={htmlFor} className="text-[0.8125rem] font-semibold text-nocturne-ink">
         {label}
         {required && <span className="ml-1 text-nocturne-accent-text">*</span>}
       </label>

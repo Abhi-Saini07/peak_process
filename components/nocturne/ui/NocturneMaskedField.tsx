@@ -65,7 +65,7 @@ export function NocturneMaskedField<T extends FieldValues>({
                 className={cn(
                   nocturneFieldInputVariants({ hasError: Boolean(error) }),
                   nocturneFieldHeightClass,
-                  "pr-11 font-mono tracking-wide",
+                  "nocturne-mono pr-11 tracking-wide",
                 )}
                 aria-invalid={Boolean(error)}
               />

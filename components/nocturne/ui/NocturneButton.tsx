@@ -4,13 +4,14 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export const nocturneButtonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-nocturne-control whitespace-nowrap font-semibold transition-[color,background-color,border-color,scale] duration-150 ease-out outline-none active:scale-[0.97] motion-reduce:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent disabled:cursor-not-allowed disabled:opacity-40",
+  "inline-flex items-center justify-center gap-2 rounded-nocturne-control whitespace-nowrap font-bold tracking-[-0.005em] transition-[color,background-color,border-color,box-shadow,scale] duration-150 ease-out outline-none active:scale-[0.97] motion-reduce:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent disabled:cursor-not-allowed disabled:opacity-40",
   {
     variants: {
       variant: {
-        primary: "bg-nocturne-accent text-nocturne-on-accent hover:bg-nocturne-accent-hover",
+        primary:
+          "bg-nocturne-accent text-nocturne-on-accent shadow-nocturne-rest hover:bg-nocturne-accent-hover hover:shadow-nocturne-glow",
         secondary:
-          "border border-nocturne-border-strong bg-nocturne-card text-nocturne-ink hover:border-nocturne-accent hover:text-nocturne-accent-text",
+          "border border-nocturne-border-strong bg-nocturne-card text-nocturne-ink hover:border-nocturne-ink-faint hover:bg-nocturne-raised",
         ghost: "h-auto rounded-none px-0 text-nocturne-accent-text underline-offset-4 hover:underline",
       },
       size: {

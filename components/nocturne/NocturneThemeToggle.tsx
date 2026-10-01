@@ -17,7 +17,7 @@ export function NocturneThemeToggle({ className }: { className?: string }) {
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       title={isDark ? "Switch to light theme" : "Switch to dark theme"}
       className={cn(
-        "relative inline-flex size-10 shrink-0 items-center justify-center rounded-nocturne-pill border border-nocturne-border bg-nocturne-card text-nocturne-ink-muted shadow-nocturne-rest transition-colors duration-150 hover:border-nocturne-border-strong hover:text-nocturne-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent",
+        "relative inline-flex size-10 shrink-0 items-center justify-center rounded-nocturne-control border border-nocturne-border bg-nocturne-card text-nocturne-ink-muted shadow-nocturne-rest transition-colors duration-150 hover:border-nocturne-border-strong hover:bg-nocturne-raised hover:text-nocturne-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent",
         className,
       )}
     >

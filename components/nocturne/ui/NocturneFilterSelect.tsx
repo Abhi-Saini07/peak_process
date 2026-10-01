@@ -183,7 +183,7 @@ export function NocturneFilterSelect({
             exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: 0.12, ease: "easeIn" } }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             style={{ transformOrigin: "top center" }}
-            className="absolute inset-x-0 top-full z-30 mt-2 max-h-72 min-w-48 overflow-auto rounded-nocturne-control border border-nocturne-border bg-nocturne-card p-1.5 shadow-nocturne-menu"
+            className="absolute inset-x-0 top-full z-30 mt-2 max-h-72 min-w-48 overflow-auto rounded-nocturne-card border border-nocturne-border bg-nocturne-card p-1.5 shadow-nocturne-menu"
           >
             {options.map((option, index) => {
               const isSelected = index === selectedIndex;
@@ -201,7 +201,7 @@ export function NocturneFilterSelect({
                   onClick={() => commit(index)}
                   className={cn(
                     "flex cursor-pointer items-center justify-between gap-3 rounded-[0.5rem] px-3 py-2 text-sm transition-colors duration-100",
-                    isActive ? "bg-nocturne-accent-tint text-nocturne-ink" : "text-nocturne-ink-muted",
+                    isActive ? "bg-nocturne-raised text-nocturne-ink" : "text-nocturne-ink-muted",
                     isSelected && "font-medium text-nocturne-ink",
                   )}
                 >

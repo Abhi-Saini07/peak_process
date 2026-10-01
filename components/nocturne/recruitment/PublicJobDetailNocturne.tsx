@@ -9,22 +9,25 @@ import {
   NAV_FORWARD,
   careersContainer,
   formatSalary,
+  glowPanelClass,
+  heroGlowClass,
+  pageTitleClass,
   panelClass,
   panelHeadingClass,
-  softPanelClass,
   teamPillClass,
 } from "@/components/nocturne/recruitment/careersUi";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import { cn } from "@/lib/utils/cn";
 import type { PublicJobDetail } from "@/types/recruitment";
 
-const proseText = "text-[0.9375rem] leading-relaxed text-nocturne-ink/90";
+const proseText = "text-[0.9375rem] leading-relaxed text-nocturne-ink-muted";
 
+/** One block of the role description; blocks are split by hairlines. */
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mt-6 first:mt-0">
+    <section className="mt-6 border-t border-nocturne-border pt-6 first:mt-0 first:border-t-0 first:pt-0">
       <h2 className={panelHeadingClass}>{title}</h2>
-      <div className="mt-2">{children}</div>
+      <div className="mt-2.5">{children}</div>
     </section>
   );
 }
@@ -38,7 +41,7 @@ function BulletList({ text }: { text: string }) {
     <ul className="flex flex-col gap-1.5">
       {items.map((item) => (
         <li key={item} className={cn(proseText, "flex gap-3")}>
-          <span className="mt-[0.62em] size-1.5 shrink-0 rounded-full bg-nocturne-gold" aria-hidden />
+          <span className="mt-[0.6em] size-1.5 shrink-0 rounded-full bg-nocturne-accent" aria-hidden />
           {item}
         </li>
       ))}
@@ -53,7 +56,7 @@ function hasItems(text: string | null): text is string {
 function SkillList({ label, skills, emphasis }: { label: string; skills: string[]; emphasis: boolean }) {
   return (
     <div>
-      <p className="nocturne-type-eyebrow text-nocturne-ink-muted">{label}</p>
+      <p className="text-[0.8125rem] font-semibold text-nocturne-ink">{label}</p>
       <ul className="mt-2.5 flex flex-wrap gap-2">
         {skills.map((s) => (
           <li
@@ -61,7 +64,7 @@ function SkillList({ label, skills, emphasis }: { label: string; skills: string[
             className={
               emphasis
                 ? teamPillClass
-                : "inline-flex items-center rounded-nocturne-pill border border-nocturne-border-strong/60 px-2.5 py-[0.1875rem] text-xs leading-none font-semibold text-nocturne-ink"
+                : "inline-flex items-center rounded-nocturne-pill bg-nocturne-raised px-2.5 py-1 text-xs leading-none font-semibold text-nocturne-ink"
             }
           >
             {s}
@@ -85,20 +88,15 @@ export function PublicJobDetailNocturne({ job }: { job: PublicJobDetail }) {
 
   return (
     <NocturneCareersFrame>
-      <main className={`${careersContainer} pt-6 pb-16 sm:pt-7 sm:pb-24`}>
-        <div className="grid grid-cols-1 gap-7 tablet:grid-cols-[minmax(0,1fr)_21.25rem] tablet:items-start">
+      <main className={heroGlowClass}>
+        <div
+          className={`${careersContainer} grid grid-cols-1 gap-7 pt-6 pb-16 sm:pt-9 sm:pb-24 tablet:grid-cols-[minmax(0,1fr)_21.25rem] tablet:items-start tablet:gap-8`}
+        >
           <div className="min-w-0">
             <BackLink href="/jobs">All positions</BackLink>
-            {job.department && <p className="nocturne-type-eyebrow mt-4 text-nocturne-accent-text">{job.department}</p>}
-            <h1
-              className={cn(
-                "font-nocturne-display text-[clamp(2rem,1.45rem+2.2vw,2.75rem)] leading-[1.1] font-semibold tracking-[-0.02em] text-balance text-nocturne-ink",
-                job.department ? "mt-1.5" : "mt-4",
-              )}
-            >
-              {job.title}
-            </h1>
-            <JobMetaRow job={job} salary={salary} className="mt-3.5" />
+            {job.department && <p className="nocturne-type-eyebrow mt-6 text-nocturne-accent-text">{job.department}</p>}
+            <h1 className={cn(pageTitleClass, job.department ? "mt-3" : "mt-6")}>{job.title}</h1>
+            <JobMetaRow job={job} salary={salary} className="mt-5" />
 
             <Link
               href={`/jobs/${job.id}/apply`}
@@ -110,7 +108,7 @@ export function PublicJobDetailNocturne({ job }: { job: PublicJobDetail }) {
             </Link>
 
             {hasProse && (
-              <div className={cn(panelClass, "mt-6 px-5 py-6 sm:px-6")}>
+              <div className={cn(panelClass, "mt-7 px-5 py-6 sm:px-7 sm:py-7")}>
                 {job.overview && (
                   <Section title="Overview">
                     <p className={cn(proseText, "whitespace-pre-line")}>{job.overview}</p>
@@ -153,23 +151,23 @@ export function PublicJobDetailNocturne({ job }: { job: PublicJobDetail }) {
           </div>
 
           <aside className="flex flex-col gap-3.5 tablet:sticky tablet:top-6" aria-label="Apply for this role">
-            <div className={cn(softPanelClass, "px-5 py-5 sm:px-6")}>
-              <h2 className="font-nocturne-display text-[1.375rem] leading-tight font-semibold text-nocturne-ink">
+            <div className={cn(glowPanelClass, "px-5 py-5.5 sm:px-6")}>
+              <h2 className="font-nocturne-display text-[1.375rem] leading-tight font-semibold tracking-[-0.02em] text-nocturne-ink">
                 Interested?
               </h2>
-              <p className="mt-1 text-[0.8125rem] text-nocturne-ink-muted">Applying only takes a few minutes.</p>
+              <p className="mt-1.5 text-[0.8125rem] text-nocturne-ink-muted">Applying only takes a few minutes.</p>
               <Link
                 href={`/jobs/${job.id}/apply`}
                 transitionTypes={NAV_FORWARD}
-                className={`${nocturneButtonVariants({ variant: "primary" })} mt-3.5 w-full`}
+                className={`${nocturneButtonVariants({ variant: "primary" })} mt-4 w-full`}
               >
                 Apply now
                 <ArrowRight className="size-4" aria-hidden />
               </Link>
             </div>
             <div className={cn(panelClass, "px-5 py-5 sm:px-6")}>
-              <h2 className="sr-only">Role details</h2>
-              <JobFacts job={job} salary={salary} />
+              <h2 className="nocturne-type-eyebrow text-nocturne-ink-muted">Role details</h2>
+              <JobFacts job={job} salary={salary} className="mt-4" />
             </div>
           </aside>
         </div>
