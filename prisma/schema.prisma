@@ -1,13 +1,9 @@
 // Peak Process Partners — Onboarding Platform
-// Prisma schema. This is the ORM-level mirror of db/schema.sql — see that
-// file's header comments for the reasoning behind each modeling decision
-// (why there's no onboarding_steps/checklist/users table, why completion %
-// isn't stored, why Aadhaar/PAN/UAN are ciphertext columns, etc).
-//
-// Database: PostgreSQL (Neon in production). This file plus the SQL in
-// prisma/migrations/ are the source of truth; the migration also carries
-// the CHECK constraints Prisma's DSL can't express. The original MySQL DDL
-// and migrations are kept for reference in db/legacy-mysql/.
+// Prisma schema. Database: PostgreSQL (Neon in production). This file plus
+// the SQL in prisma/migrations/ are the source of truth; the migration also
+// carries the CHECK constraints Prisma's DSL can't express. Completion % and
+// current step aren't stored (they're derived from the data), and Aadhaar /
+// PAN / UAN are stored only as AES-256-GCM ciphertext.
 
 generator client {
   provider = "prisma-client-js"
@@ -164,9 +160,8 @@ model HealthInsurance {
   @@map("health_insurance")
 }
 
-/// Up to 5 per employee (enforced in the API route, not the DB — see
-/// schema.sql comment: CHECK constraints can't express cross-row
-/// cardinality rules).
+/// Up to 5 per employee (enforced in the API route, not the DB: CHECK
+/// constraints can't express cross-row cardinality rules).
 model HealthInsuranceDependent {
   id           String   @id @default(uuid()) @db.Char(36)
   employeeId   String   @map("employee_id") @db.Char(36)
@@ -208,8 +203,7 @@ model EmployeeDocument {
 // ============================================================================
 // Recruitment (jobs + applications) — additive, independent of the models
 // above. A job applicant is NOT an Employee: nothing here relates to
-// Employee or its children. See db/schema.sql's recruitment section header
-// for the full reasoning.
+// Employee or its children.
 // ============================================================================
 
 enum EmploymentType {
@@ -345,9 +339,9 @@ model JobApplication {
   @@map("job_applications")
 }
 
-/// Resume/other uploads, scoped to the application (not the candidate) — see
-/// db/schema.sql for why. File bytes live on local disk
-/// (lib/server/fileStorage.ts); storagePath is never a public URL.
+/// Resume/other uploads, scoped to the application (not the candidate), so
+/// each application keeps the files it was sent with. File bytes live in
+/// object storage (lib/server/fileStorage.ts); storagePath is never a public URL.
 model ApplicationDocument {
   id            String                  @id @default(uuid()) @db.Char(36)
   applicationId String                  @map("application_id") @db.Char(36)

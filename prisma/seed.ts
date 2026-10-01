@@ -1,5 +1,5 @@
 /**
- * Three demo employees (originally db/legacy-mysql/seed.sql), via Prisma so Priya
+ * Three demo employees, created via Prisma so Priya
  * Sharma's Aadhaar/PAN can be properly AES-256-GCM encrypted with the
  * real ENCRYPTION_KEY — something a plain .sql file can't produce. Run
  * with `npx prisma db seed` (requires DATABASE_URL and ENCRYPTION_KEY set).

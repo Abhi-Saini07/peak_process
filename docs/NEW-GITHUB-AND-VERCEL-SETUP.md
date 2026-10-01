@@ -12,52 +12,33 @@ Step-by-step guide for moving this project (Peak Process Partners onboarding and
 | File storage | Resumes and onboarding documents | An **S3-compatible bucket** (MinIO, Cloudflare R2, etc.). Vercel can't store uploaded files on disk. |
 | Secrets | `ENCRYPTION_KEY` etc. | Vercel → Settings → Environment Variables |
 
-Commands below are for **Git Bash on Windows**, run from the project folder (e.g. `cd /e/peak_process_101`).
+Commands below are for **Git Bash on Windows**, run from the project folder (e.g. `cd /e/peak_process`).
 
 ---
 
 ## 0. Before you start
 
-- Install **Git**, and **Node.js 20 or newer** (the project is tested on 22). Check with `node -v` and `git --version`.
-- Have your working local copy on the branch you want to go live, and make sure it runs (`npm run dev`).
-- Use the code with Neon + Clerk: the `claude/neon-clerk` branch (or `master`, once that branch is merged). Step 2 publishes it as the new repo's `main` branch.
+- Install **Git** and **Node.js 20 or newer** (tested on 22). Check with `node -v` and `git --version`.
+- The code lives in **github.com/Abhi-Saini07/peak_process** (branch `main`).
 
 ---
 
-## 1. Create the new GitHub repository
+## 1. Get the code
 
-1. Sign in to the new GitHub account → **New repository**.
-2. Name it (e.g. `peak_process_101`) and choose **Private**.
-3. **Do not** add a README, .gitignore or licence. The repo must start empty.
-4. Click **Create repository** and copy its URL, e.g. `https://github.com/NEW-ACCOUNT/peak_process_101.git`.
+```bash
+cd /e
+git clone https://github.com/Abhi-Saini07/peak_process.git
+cd peak_process
+npm install
+```
+
+`.env` is never committed — create it from `.env.example` (steps 3–5 give the values).
 
 ---
 
-## 2. Push the code to the new repo
+## 2. GitHub access for Claude (optional)
 
-```bash
-cd /e/peak_process_101
-git status                      # must say "working tree clean"
-git checkout claude/neon-clerk
-git pull                        # get the latest
-
-# keep the old GitHub as "old-origin", add the new one as "origin"
-git remote rename origin old-origin
-git remote add origin https://github.com/NEW-ACCOUNT/peak_process_101.git
-
-# publish it as the new repo's main branch
-git push -u origin claude/neon-clerk:main
-```
-
-- Git will ask you to sign in to the **new** GitHub account. Use the browser pop-up, or a Personal Access Token as the password.
-- Optional, to copy every branch as well: `git push origin --all`.
-- Check on GitHub that the files are there. `.env` must **not** be there: it's in `.gitignore` and must never be committed.
-
-From now on work on `main` locally:
-
-```bash
-git checkout -b main origin/main
-```
+So Claude can push to the repo: sign in as the repo owner → https://github.com/apps/claude/installations/select_target → choose the account → select `peak_process`.
 
 ---
 
@@ -131,7 +112,7 @@ Resumes and documents go to an S3-compatible bucket, such as your existing MinIO
 ## 6. Create the Vercel project
 
 1. Sign in to Vercel (ideally *Continue with GitHub*, using the new GitHub account).
-2. **Add New… → Project** → import the new `peak_process_101` repo. If it's not listed, click *Adjust GitHub App Permissions* and give Vercel access to it.
+2. **Add New… → Project** → import the `peak_process` repo. If it's not listed, click *Adjust GitHub App Permissions* and give Vercel access to it.
 3. **Framework preset:** Next.js (auto-detected). Leave the Build Command, Output Directory and Install Command as the defaults. `npm run build` automatically runs `prisma generate` first (the `prebuild` script).
 4. Before clicking Deploy, open **Environment Variables** and add:
 
@@ -161,7 +142,7 @@ Resumes and documents go to an S3-compatible bucket, such as your existing MinIO
 
 Open the Vercel URL and test each area:
 
-- [ ] `/jobs`: careers page loads, with the Canopy design.
+- [ ] `/jobs`: careers page loads with the Nocturne design; the theme toggle switches light/dark.
 - [ ] `/admin/login`: sign in with an invited Clerk account whose email is in `ADMIN_EMAILS`.
 - [ ] Sign in with an account **not** in `ADMIN_EMAILS` → you should see "No HR access".
 - [ ] `/admin/jobs/new`: create a job, set it to **Published**, and save.
