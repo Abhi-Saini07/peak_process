@@ -1,44 +1,59 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AdminClerkSignIn } from "@/components/recruitment/AdminClerkSignIn";
+import { PeakMark } from "@/components/Logo";
+import { NocturneThemeToggle } from "@/components/nocturne/NocturneThemeToggle";
 
-/** The Peak mark on forest, matching the app sidebar. */
-function ForestMark() {
+/** Brand lockup shared by the login and no-access cards. */
+export function AdminBrandLockup() {
   return (
-    <svg viewBox="0 0 32 32" className="size-10 shrink-0" aria-hidden>
-      <rect width="32" height="32" rx="8" className="fill-nocturne-forest" />
-      <path d="M7 22.5L13.5 10L17 16.2L19.8 11.6L25 22.5H7Z" className="fill-nocturne-forest-gold" />
-    </svg>
+    <div className="flex items-center gap-3">
+      <PeakMark className="size-10 shrink-0" />
+      <div className="min-w-0 leading-tight">
+        <p className="font-nocturne-display text-[0.9375rem] font-semibold tracking-[-0.01em] text-nocturne-ink">
+          Peak Process Partners
+        </p>
+        <p className="mt-0.5 nocturne-type-eyebrow text-[0.6875rem] text-nocturne-ink-muted">HR admin</p>
+      </div>
+    </div>
+  );
+}
+
+/** Full-height page frame for the signed-out admin screens: soft accent wash, brand top-left, theme toggle top-right. */
+export function AdminAuthFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative min-h-screen bg-nocturne-bg bg-[radial-gradient(56rem_24rem_at_50%_-4rem,color-mix(in_oklab,var(--color-nocturne-accent)_16%,transparent),transparent_70%)] font-nocturne-ui text-nocturne-ink">
+      <div className="mx-auto flex min-h-screen w-full max-w-[27rem] flex-col justify-center px-4 py-20 sm:py-16">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+          <NocturneThemeToggle />
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
 export function AdminLoginNocturne() {
   return (
-    <div className="min-h-screen bg-nocturne-bg font-nocturne-ui text-nocturne-ink">
-      <div className="mx-auto flex min-h-screen w-full max-w-[26rem] flex-col items-stretch justify-center px-4 py-10">
-        <div className="mb-6 flex items-center justify-center gap-3">
-          <ForestMark />
-          <div className="leading-tight">
-            <p className="text-[0.9375rem] font-bold text-nocturne-ink">Peak Process Partners</p>
-            <p className="mt-0.5 text-[0.6875rem] font-semibold tracking-widest text-nocturne-ink-muted uppercase">HR Admin</p>
-          </div>
-        </div>
+    <AdminAuthFrame>
+      <div className="mb-7 flex justify-center">
+        <AdminBrandLockup />
+      </div>
 
-        <div className="rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-5 py-7 shadow-nocturne-lift sm:px-8 sm:py-8">
-          <h1 className="font-nocturne-display text-[1.875rem] leading-tight font-semibold tracking-[-0.015em] text-nocturne-ink">
-            Admin sign in
-          </h1>
-          <p className="mt-1.5 text-sm text-nocturne-ink-muted">Sign in to manage job openings and applications.</p>
+      <div className="rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-5 py-7 shadow-nocturne-lift sm:px-8 sm:py-8">
+        <p className="nocturne-type-eyebrow text-nocturne-accent-text">Recruitment</p>
+        <h1 className="mt-2 font-nocturne-display text-[1.875rem] leading-tight font-semibold tracking-[-0.025em] text-nocturne-ink">
+          Admin sign in
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-nocturne-ink-muted">
+          Sign in to manage job openings and applications.
+        </p>
 
-          <div className="mt-6">
-            <AdminClerkSignIn
-              colors={{ primary: "#1f6f54", text: "#16271f", muted: "#56675f", input: "#ffffff", border: "#86938c", danger: "#b3413a" }}
-              fontFamily="var(--font-manrope), sans-serif"
-              borderRadius="0.625rem"
-            />
-          </div>
+        <div className="mt-6 border-t border-nocturne-border pt-6">
+          <AdminClerkSignIn />
         </div>
       </div>
-    </div>
+    </AdminAuthFrame>
   );
 }

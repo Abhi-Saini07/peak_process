@@ -10,6 +10,8 @@ import { formatBytes } from "@/lib/utils/formatBytes";
 import {
   AdminPageHeading,
   StatusPill,
+  adminCardTitleClass,
+  adminLabelClass,
   adminPanelClass,
 } from "@/components/nocturne/recruitment/AdminShellNocturne";
 import type { ApplicationDetail } from "@/types/recruitment";
@@ -28,14 +30,16 @@ function InfoRow({ label, value, mono }: { label: string; value: string | null; 
   if (!value) return null;
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-bold tracking-[0.04em] text-nocturne-ink-muted">{label}</dt>
-      <dd className={cn("mt-1 text-sm break-words text-nocturne-ink", mono && "nocturne-mono text-[0.8125rem]")}>{value}</dd>
+      <dt className={adminLabelClass}>{label}</dt>
+      <dd className={cn("mt-1.5 text-sm font-medium break-words text-nocturne-ink", mono && "nocturne-mono text-[0.8125rem]")}>
+        {value}
+      </dd>
     </div>
   );
 }
 
 function PanelTitle({ children }: { children: string }) {
-  return <h2 className="font-nocturne-display text-[1.1875rem] font-semibold text-nocturne-ink">{children}</h2>;
+  return <h2 className={adminCardTitleClass}>{children}</h2>;
 }
 
 export function AdminApplicationDetailNocturne({ application }: { application: ApplicationDetail }) {
@@ -46,13 +50,14 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
     <div>
       <Link
         href={`/admin/jobs/${application.jobId}/applications`}
-        className="mb-3 inline-flex max-w-full items-center gap-1.5 rounded-sm text-[0.8125rem] font-semibold text-nocturne-ink-muted transition-colors hover:text-nocturne-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent"
+        className="mb-4 inline-flex h-8 max-w-full items-center gap-1.5 rounded-nocturne-pill border border-nocturne-border bg-nocturne-card pr-3.5 pl-2.5 text-[0.8125rem] font-semibold text-nocturne-ink-muted shadow-nocturne-rest transition-colors hover:border-nocturne-border-strong hover:text-nocturne-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent"
       >
         <ArrowLeft className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{application.jobTitle}</span>
       </Link>
 
       <AdminPageHeading
+        eyebrow="Recruitment · Application"
         title={application.candidateName}
         lead={
           <>
@@ -62,11 +67,11 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
         }
       />
 
-      <div className="mt-5 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="mt-7 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-4">
-          <section className={cn(adminPanelClass, "px-4 py-5 sm:px-6")}>
+          <section className={cn(adminPanelClass, "px-4 py-5.5 sm:px-6.5")}>
             <PanelTitle>Candidate information</PanelTitle>
-            <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+            <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
               <InfoRow label="Email" value={application.email} />
               <InfoRow label="Phone" value={application.phone} mono />
               <InfoRow label="Location" value={application.location} />
@@ -80,20 +85,22 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
           </section>
 
           <section className={cn(adminPanelClass, "overflow-hidden")}>
-            <div className="border-b border-nocturne-border px-4 py-4 sm:px-6">
+            <div className="border-b border-nocturne-border px-4 py-4.5 sm:px-6.5">
               <PanelTitle>Documents</PanelTitle>
             </div>
             {application.documents.length === 0 ? (
-              <p className="px-4 py-5 text-sm text-nocturne-ink-muted sm:px-6">No documents on file.</p>
+              <p className="px-4 py-5 text-sm text-nocturne-ink-muted sm:px-6.5">No documents on file.</p>
             ) : (
               <ul>
                 {application.documents.map((doc) => (
                   <li key={doc.id} className="border-b border-nocturne-border last:border-b-0">
                     <a
                       href={`/api/admin/applications/${application.id}/documents/${doc.id}`}
-                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-nocturne-table-head focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-nocturne-accent sm:px-6"
+                      className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-nocturne-raised focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-nocturne-accent sm:px-6.5"
                     >
-                      <FileText className="size-4 shrink-0 text-nocturne-ink-muted" aria-hidden />
+                      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-nocturne-control bg-nocturne-accent-tint text-nocturne-accent-text">
+                        <FileText className="size-4" aria-hidden />
+                      </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-bold text-nocturne-ink">
                           {doc.documentType === "resume" ? "Resume" : "Additional document"}
@@ -109,12 +116,12 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
           </section>
 
           {(application.coverLetter || application.linkedinUrl || application.portfolioUrl) && (
-            <section className={cn(adminPanelClass, "px-4 py-5 sm:px-6")}>
+            <section className={cn(adminPanelClass, "px-4 py-5.5 sm:px-6.5")}>
               <PanelTitle>Additional information</PanelTitle>
               <div className="mt-4 flex flex-col gap-4">
                 {application.coverLetter && (
                   <div>
-                    <p className="text-xs font-bold tracking-[0.04em] text-nocturne-ink-muted">Cover letter</p>
+                    <p className={adminLabelClass}>Cover letter</p>
                     <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-nocturne-ink">
                       {application.coverLetter}
                     </p>
@@ -148,7 +155,9 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-6">
-          <section className="flex flex-col gap-3.5 rounded-nocturne-card bg-nocturne-surface px-5 py-5.5 sm:px-6">
+          <section
+            className={cn(adminPanelClass, "flex flex-col gap-4 px-5 py-5.5 sm:px-6", nextStatuses.length > 0 && "shadow-nocturne-glow")}
+          >
             <div className="flex items-center justify-between gap-3">
               <PanelTitle>Status</PanelTitle>
               <StatusPill kind="application" status={application.status}>
@@ -180,14 +189,24 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
             )}
           </section>
 
-          <section className={cn(adminPanelClass, "px-5 py-5 sm:px-6")}>
+          <section className={cn(adminPanelClass, "px-5 py-5.5 sm:px-6")}>
             <PanelTitle>Status history</PanelTitle>
-            <ol className="mt-3 flex flex-col">
-              {application.history.map((entry) => (
-                <li
-                  key={entry.id}
-                  className="flex flex-col gap-0.5 border-b border-nocturne-border py-2.5 text-sm last:border-b-0 last:pb-0"
-                >
+            <ol className="mt-4 flex flex-col">
+              {application.history.map((entry, index) => (
+                <li key={entry.id} className="relative flex flex-col gap-0.5 pb-4 pl-6 text-sm last:pb-0">
+                  {/* Timeline rail + dot; the latest entry's dot is filled. */}
+                  {index < application.history.length - 1 && (
+                    <span className="absolute top-4 bottom-0 left-[0.3125rem] w-px bg-nocturne-border" aria-hidden />
+                  )}
+                  <span
+                    className={cn(
+                      "absolute top-1.5 left-0 size-2.75 rounded-full border-2",
+                      index === application.history.length - 1
+                        ? "border-nocturne-accent bg-nocturne-accent"
+                        : "border-nocturne-border-strong bg-nocturne-card",
+                    )}
+                    aria-hidden
+                  />
                   <span className="text-nocturne-ink">
                     {entry.oldStatus ? `${applicationStatusLabel(entry.oldStatus)} → ` : ""}
                     <span className="font-bold">{applicationStatusLabel(entry.newStatus)}</span>

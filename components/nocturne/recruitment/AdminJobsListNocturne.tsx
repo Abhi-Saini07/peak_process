@@ -12,7 +12,10 @@ import {
   KbdHint,
   StatusPill,
   TeamPill,
+  adminEyebrowClass,
+  adminLabelClass,
   adminPanelClass,
+  adminSearchInputClass,
 } from "@/components/nocturne/recruitment/AdminShellNocturne";
 import type { JobSummary } from "@/types/recruitment";
 
@@ -47,15 +50,23 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "closed", label: "Closed" },
 ];
 
-function Kpi({ label, value, note }: { label: string; value: number; note: string }) {
+function Kpi({ label, value, note, dot }: { label: string; value: number; note: string; dot?: string }) {
   return (
-    <div className={cn(adminPanelClass, "flex flex-col gap-1.5 px-4.5 py-4")}>
-      <p className="text-xs font-bold tracking-[0.04em] text-nocturne-ink-muted">{label}</p>
-      <p className="nocturne-mono text-2xl font-medium text-nocturne-ink">{value}</p>
-      <p className="text-xs text-nocturne-ink-muted">{note}</p>
+    <div className={cn(adminPanelClass, "flex flex-col px-4.5 py-4 sm:px-5 sm:py-4.5")}>
+      <p className="flex items-center gap-2 text-[0.8125rem] font-semibold text-nocturne-ink-muted">
+        {dot && <span className={cn("size-2 shrink-0 rounded-full", dot)} aria-hidden />}
+        {label}
+      </p>
+      <p className="mt-2 font-nocturne-display text-[2.25rem] leading-none font-semibold tracking-[-0.03em] text-nocturne-ink tabular-nums sm:text-[2.5rem]">
+        {value}
+      </p>
+      <p className="mt-2 text-xs leading-snug text-nocturne-ink-muted">{note}</p>
     </div>
   );
 }
+
+const ROW_GRID =
+  "xl:grid-cols-[minmax(0,2.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)_auto]";
 
 export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
   const [query, setQuery] = useState("");
@@ -63,7 +74,7 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const { changeStatus, pendingId, error } = useJobStatusAction();
 
-  // "/" jumps to the search box (Ledger convention), unless already typing somewhere.
+  // "/" jumps to the search box, unless already typing somewhere.
   useEffect(() => {
     function onKey(e: globalThis.KeyboardEvent) {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -102,6 +113,7 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
   return (
     <div>
       <AdminPageHeading
+        eyebrow="Recruitment"
         title="Job postings"
         lead="Everything that’s live on the careers site, plus drafts in progress."
         action={
@@ -111,22 +123,23 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
         }
       />
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-3.5 lg:grid-cols-4">
+      <div className="mt-7 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Kpi
           label="Published"
+          dot="bg-nocturne-success"
           value={counts.published}
           note={counts.live === counts.published ? "On the careers site" : `${counts.live} live on the careers site`}
         />
-        <Kpi label="Drafts" value={counts.draft} note="Only visible to HR" />
-        <Kpi label="Closed" value={counts.closed} note="No longer taking applications" />
+        <Kpi label="Drafts" dot="bg-nocturne-gold" value={counts.draft} note="Only visible to HR" />
+        <Kpi label="Closed" dot="bg-nocturne-ink-faint" value={counts.closed} note="No longer taking applications" />
         <Kpi label="Applicants" value={counts.applicants} note="Across all postings" />
       </div>
 
-      <div className="mt-5.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div
           role="group"
           aria-label="Filter by status"
-          className="flex max-w-full gap-1 self-start overflow-x-auto rounded-nocturne-card bg-nocturne-surface-2 p-1 text-[0.8125rem] font-semibold"
+          className="-mx-1 flex max-w-full gap-2 self-start overflow-x-auto px-1 py-1 text-[0.8125rem] font-semibold"
         >
           {FILTERS.map((f) => {
             const active = statusFilter === f.value;
@@ -137,13 +150,14 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
                 aria-pressed={active}
                 onClick={() => setStatusFilter(f.value)}
                 className={cn(
-                  "rounded-[9px] px-3 py-1.5 whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-nocturne-accent",
+                  "inline-flex h-9 items-center gap-1.5 rounded-nocturne-pill px-3.5 whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent",
                   active
-                    ? "bg-nocturne-card text-nocturne-ink shadow-nocturne-rest"
-                    : "text-nocturne-ink-muted hover:text-nocturne-ink",
+                    ? "bg-nocturne-accent text-nocturne-on-accent"
+                    : "border border-nocturne-border-strong/70 text-nocturne-ink-muted hover:border-nocturne-border-strong hover:bg-nocturne-raised hover:text-nocturne-ink",
                 )}
               >
-                {f.label} <span className="nocturne-mono font-medium">{counts[f.value]}</span>
+                {f.label}
+                <span className="nocturne-mono text-xs font-medium tabular-nums">{counts[f.value]}</span>
               </button>
             );
           })}
@@ -162,7 +176,7 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
             placeholder="Search postings"
             aria-label="Search postings"
             aria-keyshortcuts="/"
-            className="h-10 w-full rounded-nocturne-control border border-nocturne-border-strong bg-nocturne-card pr-10 pl-10 text-sm text-nocturne-ink outline-none placeholder:text-nocturne-ink-faint hover:border-nocturne-ink-muted focus:border-nocturne-accent focus:ring-3 focus:ring-nocturne-accent/20 [&::-webkit-search-cancel-button]:hidden"
+            className={adminSearchInputClass}
           />
           <span className="absolute top-1/2 right-3 -translate-y-1/2">
             <KbdHint>/</KbdHint>
@@ -177,8 +191,8 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
       )}
 
       {filtered.length === 0 ? (
-        <div className={cn(adminPanelClass, "mt-3 px-6 py-12 text-center")}>
-          <p className="font-nocturne-display text-xl font-semibold text-nocturne-ink">
+        <div className={cn(adminPanelClass, "mt-4 px-6 py-14 text-center")}>
+          <p className="font-nocturne-display text-xl font-semibold tracking-[-0.01em] text-nocturne-ink">
             {jobs.length === 0 ? "No job postings yet" : "Nothing matches"}
           </p>
           <p className="mt-1.5 text-sm text-nocturne-ink-muted">
@@ -186,10 +200,14 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
           </p>
         </div>
       ) : (
-        <div className={cn(adminPanelClass, "mt-3 overflow-hidden")}>
-          {/* Column headings — desktop table only; rows stack below `xl` (the sidebar eats width on tablets). */}
+        // One card-surface table on wide screens; below `xl` (the sidebar eats width on tablets) each row is its own card.
+        <div className="mt-4 xl:overflow-hidden xl:rounded-nocturne-card xl:border xl:border-nocturne-border xl:bg-nocturne-card xl:shadow-nocturne-rest">
           <div
-            className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)_auto] items-center gap-4 border-b border-nocturne-border bg-nocturne-table-head px-5 py-3 text-[0.6875rem] font-bold tracking-widest text-nocturne-ink-muted uppercase xl:grid"
+            className={cn(
+              "hidden items-center gap-4 border-b border-nocturne-border bg-nocturne-table-head px-5 py-3 xl:grid",
+              adminLabelClass,
+              ROW_GRID,
+            )}
             aria-hidden
           >
             <span>Role</span>
@@ -200,7 +218,7 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
             <span className="w-52" />
           </div>
 
-          <ul>
+          <ul className="flex flex-col gap-3 xl:gap-0">
             {filtered.map((job) => {
               const sub = [
                 job.location,
@@ -213,12 +231,17 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
               return (
                 <li
                   key={job.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 border-b border-nocturne-border px-4 py-4 last:border-b-0 sm:px-5 xl:grid-cols-[minmax(0,2.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)_auto] xl:py-3"
+                  className={cn(
+                    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-4 py-4 shadow-nocturne-rest transition-colors sm:px-5",
+                    "xl:gap-y-2.5 xl:rounded-none xl:border-0 xl:border-b xl:py-3.5 xl:shadow-none xl:last:border-b-0 xl:hover:bg-nocturne-raised",
+                    ROW_GRID,
+                  )}
                 >
                   <div className="min-w-0">
+                    {job.department && <p className={cn(adminEyebrowClass, "mb-1.5 truncate xl:hidden")}>{job.department}</p>}
                     <Link
                       href={`/admin/jobs/${job.id}`}
-                      className="rounded-sm text-[0.9375rem] font-bold text-nocturne-ink hover:text-nocturne-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent"
+                      className="rounded-sm font-nocturne-display text-[1.0625rem] leading-snug font-semibold tracking-[-0.01em] text-nocturne-ink hover:text-nocturne-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent xl:font-nocturne-ui xl:text-[0.9375rem] xl:font-bold xl:tracking-normal"
                     >
                       {job.title}
                     </Link>
@@ -229,22 +252,17 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
                     {job.department ? <TeamPill>{job.department}</TeamPill> : <span className="text-nocturne-ink-faint">—</span>}
                   </div>
 
-                  <div className="justify-self-end xl:justify-self-start">
+                  <div className="self-start justify-self-end xl:self-center xl:justify-self-start">
                     <StatusPill kind="job" status={job.status}>
                       {jobStatusLabel(job.status)}
                     </StatusPill>
                   </div>
 
-                  {/* Mobile: team, applicants and deadline share one meta line. */}
-                  <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[0.8125rem] text-nocturne-ink-muted xl:contents">
-                    {job.department && (
-                      <span className="xl:hidden">
-                        <TeamPill>{job.department}</TeamPill>
-                      </span>
-                    )}
+                  {/* Mobile: applicants and deadline share one meta line. */}
+                  <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.8125rem] text-nocturne-ink-muted xl:contents">
                     <span className="flex items-center gap-1.5 text-nocturne-ink xl:block">
                       <Users className="size-3.5 text-nocturne-ink-faint xl:hidden" aria-hidden />
-                      <span className="nocturne-mono text-[0.8125rem]">{job.applicationCount}</span>
+                      <span className="nocturne-mono text-[0.8125rem] font-medium">{job.applicationCount}</span>
                       <span className="text-nocturne-ink-muted xl:hidden">
                         applicant{job.applicationCount === 1 ? "" : "s"}
                       </span>
@@ -260,13 +278,13 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
                     </span>
                   </div>
 
-                  <div className="col-span-2 flex flex-wrap items-center gap-2 xl:col-span-1 xl:w-52 xl:flex-nowrap xl:justify-end">
+                  <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-nocturne-border pt-3 xl:col-span-1 xl:w-52 xl:flex-nowrap xl:justify-end xl:border-0 xl:pt-0">
                     {job.status === "draft" && (
                       <button
                         type="button"
                         disabled={pendingId === job.id}
                         onClick={() => changeStatus(job.id, "published")}
-                        className={nocturneButtonVariants({ variant: "ghost", className: "px-1 text-[0.8125rem]" })}
+                        className={cn(nocturneButtonVariants({ variant: "ghost" }), "h-auto px-0.5 text-[0.8125rem]")}
                       >
                         Publish
                       </button>
@@ -274,7 +292,7 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
                     {job.status !== "draft" && (
                       <Link
                         href={`/admin/jobs/${job.id}/applications`}
-                        className={nocturneButtonVariants({ variant: "ghost", className: "px-1 text-[0.8125rem]" })}
+                        className={cn(nocturneButtonVariants({ variant: "ghost" }), "h-auto px-0.5 text-[0.8125rem]")}
                       >
                         Applications
                       </Link>
@@ -282,7 +300,11 @@ export function AdminJobsListNocturne({ jobs }: { jobs: JobSummary[] }) {
                     <Link
                       href={`/admin/jobs/${job.id}`}
                       aria-label={`Edit ${job.title}`}
-                      className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 px-3" })}
+                      className={nocturneButtonVariants({
+                        variant: "secondary",
+                        size: "sm",
+                        className: "ml-auto h-8.5 px-3 xl:ml-0",
+                      })}
                     >
                       <Pencil className="size-3.5" aria-hidden /> Edit
                     </Link>

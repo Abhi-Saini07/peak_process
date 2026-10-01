@@ -2,9 +2,24 @@
 
 import { SignIn } from "@clerk/nextjs";
 
+type ClerkColors = { primary: string; text: string; muted: string; input: string; border: string; danger: string };
+
+/**
+ * Nocturne defaults. These are CSS variables, not hex values, so Clerk follows
+ * the light/dark theme switch (data-theme on <html>) without re-rendering.
+ */
+const NOCTURNE_COLORS: ClerkColors = {
+  primary: "var(--color-nocturne-accent)",
+  text: "var(--color-nocturne-ink)",
+  muted: "var(--color-nocturne-ink-muted)",
+  input: "var(--color-nocturne-card)",
+  border: "var(--color-nocturne-border-strong)",
+  danger: "var(--color-nocturne-error)",
+};
+
 interface AdminClerkSignInProps {
-  /** Colours of the surrounding design, so Clerk's form blends into its card. */
-  colors: { primary: string; text: string; muted: string; input: string; border: string; danger: string };
+  /** Colours of the surrounding design, so Clerk's form blends into its card (defaults: Nocturne theme tokens). */
+  colors?: Partial<ClerkColors>;
   fontFamily?: string;
   borderRadius?: string;
 }
@@ -15,7 +30,12 @@ interface AdminClerkSignInProps {
  * Mounted at /admin/login with path routing; Clerk's extra steps live under
  * /admin/login/* (see app/admin/login/[[...rest]]).
  */
-export function AdminClerkSignIn({ colors, fontFamily, borderRadius = "0.625rem" }: AdminClerkSignInProps) {
+export function AdminClerkSignIn({
+  colors: colorOverrides,
+  fontFamily = "var(--font-nocturne-ui)",
+  borderRadius = "var(--radius-nocturne-control)",
+}: AdminClerkSignInProps) {
+  const colors = { ...NOCTURNE_COLORS, ...colorOverrides };
   return (
     <SignIn
       routing="path"
@@ -25,14 +45,21 @@ export function AdminClerkSignIn({ colors, fontFamily, borderRadius = "0.625rem"
       appearance={{
         variables: {
           colorPrimary: colors.primary,
+          colorPrimaryForeground: "var(--color-nocturne-on-accent)",
           colorForeground: colors.text,
           colorMutedForeground: colors.muted,
+          colorMuted: "var(--color-nocturne-raised)",
+          colorNeutral: colors.text,
           colorInput: colors.input,
           colorInputForeground: colors.text,
           colorBorder: colors.border,
+          colorRing: colors.primary,
           colorDanger: colors.danger,
-          colorBackground: "transparent",
+          colorSuccess: "var(--color-nocturne-success)",
+          colorWarning: "var(--color-nocturne-gold)",
+          colorBackground: "var(--color-nocturne-card)",
           fontFamily,
+          fontFamilyButtons: fontFamily,
           borderRadius,
         },
         elements: {
@@ -41,6 +68,9 @@ export function AdminClerkSignIn({ colors, fontFamily, borderRadius = "0.625rem"
           card: { padding: 0, boxShadow: "none", border: "none", background: "transparent" },
           header: { display: "none" },
           footer: { background: "transparent" },
+          formButtonPrimary: { height: "2.75rem", fontSize: "0.875rem", fontWeight: 600, boxShadow: "none" },
+          formFieldInput: { height: "2.75rem" },
+          footerActionLink: { color: "var(--color-nocturne-accent-text)", fontWeight: 600 },
         },
       }}
     />

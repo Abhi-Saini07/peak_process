@@ -10,7 +10,9 @@ import {
   AdminPageHeading,
   KbdHint,
   StatusPill,
+  adminLabelClass,
   adminPanelClass,
+  adminSearchInputClass,
 } from "@/components/nocturne/recruitment/AdminShellNocturne";
 import type { ApplicationSummary } from "@/types/recruitment";
 
@@ -20,7 +22,7 @@ function formatDate(iso: string): string {
 
 /** Shared look for the toolbar's search, select and sort controls. */
 const controlClass =
-  "h-10 rounded-nocturne-control border border-nocturne-border-strong bg-nocturne-card text-sm text-nocturne-ink outline-none transition-[border-color,box-shadow] hover:border-nocturne-ink-muted focus-visible:border-nocturne-accent focus-visible:ring-3 focus-visible:ring-nocturne-accent/20";
+  "h-10 rounded-nocturne-control border border-nocturne-border-strong bg-nocturne-card text-sm text-nocturne-ink outline-none transition-[border-color,box-shadow,background-color] hover:border-nocturne-ink-muted focus-visible:border-nocturne-accent focus-visible:shadow-nocturne-glow";
 
 const GRID = "xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_auto]";
 
@@ -65,16 +67,17 @@ export function AdminApplicationsListNocturne({
   return (
     <div>
       <AdminPageHeading
+        eyebrow="Recruitment · Applications"
         title={jobTitle}
         lead={
           <>
-            <span className="nocturne-mono font-medium text-nocturne-ink">{applications.length}</span> application
+            <span className="nocturne-mono font-semibold text-nocturne-ink">{applications.length}</span> application
             {applications.length === 1 ? "" : "s"}
           </>
         }
       />
 
-      <div className="mt-5.5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative w-full sm:w-72">
           <Search
             className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-nocturne-ink-faint"
@@ -88,7 +91,7 @@ export function AdminApplicationsListNocturne({
             placeholder="Search candidates…"
             aria-label="Search candidates"
             aria-keyshortcuts="/"
-            className={cn(controlClass, "w-full pr-10 pl-10 placeholder:text-nocturne-ink-faint [&::-webkit-search-cancel-button]:hidden")}
+            className={adminSearchInputClass}
           />
           <span className="absolute top-1/2 right-3 -translate-y-1/2">
             <KbdHint>/</KbdHint>
@@ -117,7 +120,7 @@ export function AdminApplicationsListNocturne({
           <button
             type="button"
             onClick={() => setNewestFirst((v) => !v)}
-            className={cn(controlClass, "flex shrink-0 items-center gap-1.5 px-3 font-semibold")}
+            className={cn(controlClass, "flex shrink-0 items-center gap-1.5 px-3.5 font-semibold hover:bg-nocturne-raised")}
           >
             <ArrowUpDown className="size-3.5 text-nocturne-ink-faint" aria-hidden />
             {newestFirst ? "Newest first" : "Oldest first"}
@@ -126,8 +129,8 @@ export function AdminApplicationsListNocturne({
       </div>
 
       {filtered.length === 0 ? (
-        <div className={cn(adminPanelClass, "mt-3 px-6 py-12 text-center")}>
-          <p className="font-nocturne-display text-xl font-semibold text-nocturne-ink">
+        <div className={cn(adminPanelClass, "mt-4 px-6 py-14 text-center")}>
+          <p className="font-nocturne-display text-xl font-semibold tracking-[-0.01em] text-nocturne-ink">
             {applications.length === 0 ? "No applications yet" : "Nothing matches"}
           </p>
           <p className="mt-1.5 text-sm text-nocturne-ink-muted">
@@ -135,10 +138,12 @@ export function AdminApplicationsListNocturne({
           </p>
         </div>
       ) : (
-        <div className={cn(adminPanelClass, "mt-3 overflow-hidden")}>
+        // One card-surface table on wide screens; each application is its own card below `xl`.
+        <div className="mt-4 xl:overflow-hidden xl:rounded-nocturne-card xl:border xl:border-nocturne-border xl:bg-nocturne-card xl:shadow-nocturne-rest">
           <div
             className={cn(
-              "hidden items-center gap-4 border-b border-nocturne-border bg-nocturne-table-head px-5 py-3 text-[0.6875rem] font-bold tracking-widest text-nocturne-ink-muted uppercase xl:grid",
+              "hidden items-center gap-4 border-b border-nocturne-border bg-nocturne-table-head px-5 py-3 xl:grid",
+              adminLabelClass,
               GRID,
             )}
             aria-hidden
@@ -149,12 +154,13 @@ export function AdminApplicationsListNocturne({
             <span>Status</span>
             <span className="w-36" />
           </div>
-          <ul>
+          <ul className="flex flex-col gap-3 xl:gap-0">
             {filtered.map((app) => (
               <li
                 key={app.id}
                 className={cn(
-                  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b border-nocturne-border px-4 py-4 last:border-b-0 sm:px-5 xl:py-3",
+                  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-4 py-4 shadow-nocturne-rest transition-colors sm:px-5",
+                  "xl:gap-y-2 xl:rounded-none xl:border-0 xl:border-b xl:py-3.5 xl:shadow-none xl:last:border-b-0 xl:hover:bg-nocturne-raised",
                   GRID,
                 )}
               >
@@ -173,7 +179,7 @@ export function AdminApplicationsListNocturne({
                   <span>
                     {app.experienceYears != null ? (
                       <>
-                        <span className="nocturne-mono text-nocturne-ink">{app.experienceYears}</span> years experience
+                        <span className="nocturne-mono font-medium text-nocturne-ink">{app.experienceYears}</span> years experience
                       </>
                     ) : (
                       <span className="text-nocturne-ink-faint">—</span>
@@ -181,7 +187,7 @@ export function AdminApplicationsListNocturne({
                   </span>
                   <span>
                     <span className="xl:hidden">Applied </span>
-                    <span className="nocturne-mono text-nocturne-ink">{formatDate(app.appliedAt)}</span>
+                    <span className="nocturne-mono font-medium text-nocturne-ink">{formatDate(app.appliedAt)}</span>
                   </span>
                 </div>
 
@@ -191,7 +197,7 @@ export function AdminApplicationsListNocturne({
                   </StatusPill>
                 </div>
 
-                <div className="col-span-2 xl:col-span-1 xl:w-36 xl:text-right">
+                <div className="col-span-2 flex justify-end border-t border-nocturne-border pt-3 xl:col-span-1 xl:block xl:w-36 xl:border-0 xl:pt-0 xl:text-right">
                   <Link
                     href={`/admin/applications/${app.id}`}
                     className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 px-3" })}

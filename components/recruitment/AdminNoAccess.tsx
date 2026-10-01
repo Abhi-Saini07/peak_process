@@ -2,6 +2,7 @@
 
 import { ShieldAlert } from "lucide-react";
 import { NocturneButton } from "@/components/nocturne/ui/NocturneButton";
+import { AdminAuthFrame, AdminBrandLockup } from "@/components/nocturne/recruitment/AdminLoginNocturne";
 import { useAdminSignOut } from "@/hooks/recruitment/useAdminSignOut";
 
 /** Shown when someone signs in with Clerk but their email isn't in ADMIN_EMAILS. */
@@ -9,18 +10,23 @@ export function AdminNoAccess({ email }: { email: string | null }) {
   const signOut = useAdminSignOut();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-nocturne-bg px-4 py-10 font-nocturne-ui text-nocturne-ink">
-      <div className="w-full max-w-[26rem] rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-5 py-7 shadow-nocturne-lift sm:px-8 sm:py-8">
-        <span className="flex size-11 items-center justify-center rounded-nocturne-control bg-nocturne-gold-tint text-nocturne-gold">
+    <AdminAuthFrame>
+      <div className="mb-7 flex justify-center">
+        <AdminBrandLockup />
+      </div>
+
+      <div className="rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-5 py-7 shadow-nocturne-lift sm:px-8 sm:py-8">
+        <span className="flex size-11 items-center justify-center rounded-full bg-nocturne-gold-tint text-nocturne-gold">
           <ShieldAlert className="size-5" aria-hidden />
         </span>
-        <h1 className="mt-4 font-nocturne-display text-[1.75rem] leading-tight font-semibold tracking-[-0.015em]">
+        <p className="mt-5 nocturne-type-eyebrow text-nocturne-gold">Access needed</p>
+        <h1 className="mt-2 font-nocturne-display text-[1.75rem] leading-tight font-semibold tracking-[-0.025em] text-nocturne-ink">
           No HR access
         </h1>
-        <p className="mt-2 text-sm text-nocturne-ink-muted">
+        <p className="mt-2.5 text-sm leading-relaxed text-nocturne-ink-muted">
           {email ? (
             <>
-              You&apos;re signed in as <span className="font-semibold text-nocturne-ink">{email}</span>, but this
+              You&apos;re signed in as <span className="font-semibold break-all text-nocturne-ink">{email}</span>, but this
               account isn&apos;t on the HR admin list.
             </>
           ) : (
@@ -32,6 +38,6 @@ export function AdminNoAccess({ email }: { email: string | null }) {
           Sign out and use another account
         </NocturneButton>
       </div>
-    </div>
+    </AdminAuthFrame>
   );
 }
