@@ -33,7 +33,7 @@ export function HealthInsuranceStepNocturne() {
             {fields.map((field, index) => (
               <div
                 key={field.id}
-                className="grid grid-cols-1 gap-4 rounded-2xl border border-nocturne-border p-4 sm:grid-cols-3"
+                className="grid grid-cols-1 gap-4 rounded-nocturne-card border border-nocturne-border bg-nocturne-bg/60 p-4 sm:grid-cols-3"
               >
                 <NocturneTextField
                   label="Name"

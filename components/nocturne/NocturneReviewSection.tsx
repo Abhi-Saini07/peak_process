@@ -23,11 +23,11 @@ const STATUS_TONE: Record<StepStatus, "success" | "attention" | "neutral"> = {
   upcoming: "neutral",
 };
 
-/** One hairline row of the review table: section + summary on the left,
+/** One hairline row of the review list: section + summary on the left,
  *  status pill and Edit link on the right. Wraps below `sm`. */
 export function NocturneReviewSection({ title, status, href, summary }: NocturneReviewSectionProps) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-nocturne-border py-3.5 first:pt-0.5 last:border-b-0 last:pb-0.5">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-nocturne-border py-3.5 first:border-t">
       <div className="min-w-0 flex-1 basis-48">
         <p className="text-sm font-bold text-nocturne-ink">{title}</p>
         <p className="mt-0.5 truncate text-[0.8125rem] text-nocturne-ink-muted">{summary || "—"}</p>

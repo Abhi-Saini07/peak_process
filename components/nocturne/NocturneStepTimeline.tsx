@@ -8,8 +8,8 @@ import { stepRegistry } from "@/lib/onboarding/steps.config";
 import { useStepStatuses } from "@/lib/store/selectors";
 import type { StepStatus } from "@/types/onboarding";
 
-/** Ledger checklist wording. "blocked" = started but incomplete, after the
- *  step you're up to — it needs attention before you can submit. */
+/** Checklist wording. "blocked" = started but incomplete, after the step
+ *  you're up to — it needs attention before you can submit. */
 const STATUS_LABEL: Record<StepStatus, string> = {
   completed: "Complete",
   current: "Up next",
@@ -19,37 +19,83 @@ const STATUS_LABEL: Record<StepStatus, string> = {
 
 const STATUS_TEXT_TONE: Record<StepStatus, string> = {
   completed: "text-nocturne-success",
-  current: "text-nocturne-gold",
-  blocked: "rounded-nocturne-pill bg-nocturne-gold-tint px-2.5 py-0.5 text-nocturne-gold",
+  current: "text-nocturne-accent-text",
+  blocked: "text-nocturne-gold",
   upcoming: "text-nocturne-ink-faint",
 };
 
+/** Nocturne step dot: done = mint check, current = accent fill with a soft
+ *  halo, blocked = amber ring, to do = hairline ring. */
 function StepDot({ status, index, size }: { status: StepStatus; index: number; size: "sm" | "md" }) {
   return (
     <span
       aria-hidden
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full border font-bold",
-        size === "sm" ? "size-6 text-[10px] sm:size-7 sm:text-[11px]" : "size-6 text-xs",
-        status === "completed" && "border-nocturne-accent bg-nocturne-accent text-nocturne-on-accent",
-        status === "current" && "border-2 border-nocturne-accent bg-nocturne-card text-nocturne-accent-text",
-        status === "blocked" && "border-nocturne-gold bg-nocturne-card text-nocturne-gold",
-        status === "upcoming" && "border-nocturne-border-strong/60 bg-nocturne-card text-nocturne-ink-muted",
+        "flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums transition-colors duration-200",
+        size === "sm" ? "size-6.5 text-[0.6875rem] sm:size-7.5 sm:text-xs" : "size-6 text-[0.6875rem]",
+        status === "completed" && "bg-nocturne-success text-nocturne-card",
+        status === "current" && "bg-nocturne-accent text-nocturne-on-accent ring-4 ring-nocturne-accent/20 sm:ring-[5px]",
+        status === "blocked" && "bg-nocturne-card text-nocturne-gold ring-[1.5px] ring-nocturne-gold ring-inset",
+        status === "upcoming" &&
+          "bg-nocturne-card text-nocturne-ink-muted ring-[1.5px] ring-nocturne-border-strong/60 ring-inset",
       )}
     >
-      {status === "completed" ? <Check className="size-3" strokeWidth={3} /> : index + 1}
+      {status === "completed" ? <Check className="size-3 sm:size-3.5" strokeWidth={3} /> : index + 1}
     </span>
   );
 }
 
 interface NocturneStepTimelineProps {
-  variant?: "trail" | "list";
+  /** "stepper": horizontal numbered stepper for page headers (labels from `sm`).
+   *  "trail": compact dots joined by lines. "list": vertical checklist. */
+  variant?: "stepper" | "trail" | "list";
   className?: string;
 }
 
 export function NocturneStepTimeline({ variant = "list", className }: NocturneStepTimelineProps) {
   const statuses = useStepStatuses();
   const pathname = usePathname();
+
+  if (variant === "stepper") {
+    return (
+      <nav aria-label="Onboarding steps" className={className}>
+        <ol className="grid grid-cols-7 gap-1">
+          {stepRegistry.map((step, index) => {
+            const status = statuses[step.id] ?? "upcoming";
+            const href = `/onboarding/${step.slug}`;
+            const viewing = pathname === href;
+            return (
+              <li key={step.id} className="min-w-0">
+                <Link
+                  href={href}
+                  aria-current={viewing ? "step" : undefined}
+                  aria-label={`Step ${index + 1}: ${step.label}, ${STATUS_LABEL[status].toLowerCase()}`}
+                  title={step.label}
+                  className="group flex flex-col items-center gap-2 rounded-nocturne-control px-1 py-1.5 text-center outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-nocturne-accent"
+                >
+                  <StepDot status={status} index={index} size="sm" />
+                  <span
+                    className={cn(
+                      "hidden max-w-full text-xs leading-snug text-balance transition-colors duration-150 sm:block",
+                      viewing
+                        ? "font-bold text-nocturne-ink"
+                        : status === "current"
+                          ? "font-semibold text-nocturne-ink"
+                          : status === "completed"
+                            ? "text-nocturne-ink-muted group-hover:text-nocturne-ink"
+                            : "text-nocturne-ink-faint group-hover:text-nocturne-ink",
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+    );
+  }
 
   if (variant === "trail") {
     return (
@@ -72,7 +118,7 @@ export function NocturneStepTimeline({ variant = "list", className }: NocturneSt
               {!isLast && (
                 <span
                   aria-hidden
-                  className={cn("h-px flex-1", status === "completed" ? "bg-nocturne-accent/40" : "bg-nocturne-border")}
+                  className={cn("h-px flex-1", status === "completed" ? "bg-nocturne-success/50" : "bg-nocturne-border")}
                 />
               )}
             </div>
@@ -82,8 +128,8 @@ export function NocturneStepTimeline({ variant = "list", className }: NocturneSt
     );
   }
 
-  /* "list": the dashboard's Ledger checklist — hairline rows, status on the
-     right, the step you're up to tinted sage. */
+  /* "list": vertical checklist — hairline rows, status on the right, the
+     step you're up to on a raised row. */
   return (
     <nav aria-label="Onboarding steps" className={className}>
       <ol>
@@ -95,19 +141,14 @@ export function NocturneStepTimeline({ variant = "list", className }: NocturneSt
                 href={`/onboarding/${step.slug}`}
                 className={cn(
                   "flex items-center gap-3 px-4 py-2.5 text-sm transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-nocturne-accent sm:px-4.5",
-                  status === "current" ? "bg-nocturne-surface hover:bg-nocturne-surface-2/70" : "hover:bg-nocturne-table-head",
+                  status === "current" ? "bg-nocturne-raised" : "hover:bg-nocturne-raised",
                 )}
               >
                 <StepDot status={status} index={index} size="md" />
-                <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate",
-                    status === "current" ? "font-bold text-nocturne-ink" : "text-nocturne-ink",
-                  )}
-                >
+                <span className={cn("min-w-0 flex-1 truncate text-nocturne-ink", status === "current" && "font-bold")}>
                   {step.label}
                 </span>
-                <span className={cn("shrink-0 text-xs font-semibold", STATUS_TEXT_TONE[status])}>
+                <span className={cn("shrink-0 text-xs font-bold", STATUS_TEXT_TONE[status])}>
                   {STATUS_LABEL[status]}
                 </span>
               </Link>

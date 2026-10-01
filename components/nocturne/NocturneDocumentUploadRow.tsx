@@ -29,7 +29,7 @@ function statusVisual(status: DocumentMeta["status"] | "pending"): { bg: string;
     case "uploading":
       return { bg: "bg-nocturne-accent-tint text-nocturne-accent-text", icon: <Upload className="size-4" /> };
     default:
-      return { bg: "bg-nocturne-surface text-nocturne-ink-muted", icon: <FileText className="size-4" /> };
+      return { bg: "bg-nocturne-raised text-nocturne-ink-muted", icon: <FileText className="size-4" /> };
   }
 }
 
@@ -52,9 +52,16 @@ export function NocturneDocumentUploadRow({ requirement, meta, progress, onUploa
       <div className="flex min-w-0 items-start gap-3">
         <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-nocturne-control", bg)}>{icon}</span>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-nocturne-ink">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-nocturne-ink">
             {requirement.label}
-            <span className="ml-2 text-xs font-medium text-nocturne-ink-faint">
+            <span
+              className={cn(
+                "text-xs",
+                !requirement.providedByHR && requirement.required && (status === "pending" || status === "error")
+                  ? "font-bold text-nocturne-gold"
+                  : "font-medium text-nocturne-ink-faint",
+              )}
+            >
               {requirement.providedByHR ? "Provided by HR" : requirement.required ? "Required" : "Optional"}
             </span>
           </p>
@@ -66,7 +73,7 @@ export function NocturneDocumentUploadRow({ requirement, meta, progress, onUploa
           </p>
 
           {status === "uploading" && (
-            <div className="mt-2 h-1 max-w-56 overflow-hidden rounded-nocturne-pill bg-nocturne-surface-2">
+            <div className="mt-2 h-1.5 max-w-56 overflow-hidden rounded-nocturne-pill bg-nocturne-surface-2">
               <div
                 className="h-full rounded-full bg-nocturne-accent transition-[width] duration-300"
                 style={{ width: `${progress ?? 0}%` }}

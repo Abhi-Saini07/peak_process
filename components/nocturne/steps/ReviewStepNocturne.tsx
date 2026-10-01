@@ -53,7 +53,7 @@ export function ReviewStepNocturne() {
         </p>
       )}
 
-      <div className="mt-5 rounded-nocturne-control border border-nocturne-border bg-nocturne-surface px-4 py-3.5">
+      <div className="mt-5 rounded-nocturne-control border border-nocturne-border bg-nocturne-raised px-4 py-3.5">
         <NocturneCheckbox
           label="I confirm the information provided is accurate to the best of my knowledge."
           checked={confirmed}

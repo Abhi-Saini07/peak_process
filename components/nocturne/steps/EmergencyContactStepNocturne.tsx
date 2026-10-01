@@ -48,7 +48,7 @@ export function EmergencyContactStepNocturne() {
           <NocturneCheckbox label="Same as my home address" {...register("sameAsHomeAddress")} />
           {sameAsHomeAddress ? (
             homeAddress ? (
-              <p className="rounded-xl border border-nocturne-border bg-nocturne-card px-4 py-3 text-sm text-nocturne-ink-muted">
+              <p className="rounded-nocturne-control bg-nocturne-raised px-4 py-3 text-sm text-nocturne-ink-muted">
                 {homeAddress}
               </p>
             ) : (

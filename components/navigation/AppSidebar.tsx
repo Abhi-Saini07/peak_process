@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PeakMark } from "@/components/Logo";
+import { NocturneThemeToggle } from "@/components/nocturne/NocturneThemeToggle";
 import { setSidebarPreference, useSidebarPreference } from "@/lib/design/sidebarPreference";
 import { getStepById, stepRegistry } from "@/lib/onboarding/steps.config";
 import { useCompletionPercent, useCurrentStepId, useFullName, useStepStatuses } from "@/lib/store/selectors";
@@ -35,7 +36,6 @@ interface SidebarTheme {
   section: string;
   item: string;
   itemActive: string;
-  indicator: string;
   control: string; // collapse / menu / close buttons
   focus: string;
   divider: string;
@@ -49,29 +49,31 @@ interface SidebarTheme {
   fill: string;
 }
 
-// Nocturne sidebar. Every value is a token, so it follows light/dark mode.
+// Every value is a token, so it follows light/dark mode.
+// Nocturne sidebar. Layered, not boxed: the active item sits on `raised`
+// with an accent edge; done steps are mint, the current one has an accent ring.
 const THEME: SidebarTheme = {
   surface: "bg-nocturne-side border-nocturne-border text-nocturne-ink",
   brand: "font-nocturne-display text-nocturne-ink",
   brandSub: "text-nocturne-ink-faint",
   section: "text-nocturne-ink-faint",
-  item: "text-nocturne-ink-muted hover:bg-nocturne-raised hover:text-nocturne-ink",
-  itemActive: "bg-nocturne-raised text-nocturne-ink",
-  indicator: "bg-nocturne-accent",
+  item: "font-medium text-nocturne-ink-muted hover:bg-nocturne-raised hover:text-nocturne-ink",
+  itemActive:
+    "bg-nocturne-raised font-semibold text-nocturne-ink shadow-[inset_3px_0_0_var(--color-nocturne-accent)]",
   control: "text-nocturne-ink-muted hover:bg-nocturne-raised hover:text-nocturne-ink",
   focus: "focus-visible:outline-nocturne-accent",
   divider: "border-nocturne-border",
-  backdrop: "bg-black/50",
+  backdrop: "bg-nocturne-forest-deep/60 backdrop-blur-[2px]",
   font: "font-nocturne-ui",
   step: {
-    completed: "border-nocturne-accent bg-nocturne-accent text-nocturne-on-accent",
-    current: "border-nocturne-accent text-nocturne-accent-text ring-2 ring-nocturne-accent/25",
-    blocked: "border-nocturne-gold text-nocturne-gold",
-    upcoming: "border-nocturne-border-strong text-nocturne-ink-faint",
+    completed: "bg-nocturne-success text-nocturne-side",
+    current: "text-nocturne-accent-text ring-2 ring-nocturne-accent ring-inset",
+    blocked: "text-nocturne-gold ring-[1.5px] ring-nocturne-gold ring-inset",
+    upcoming: "text-nocturne-ink-faint ring-[1.5px] ring-nocturne-border-strong/50 ring-inset",
   },
   stepLine: "bg-nocturne-border",
-  stepViewing: "bg-nocturne-raised text-nocturne-ink",
-  track: "bg-nocturne-raised",
+  stepViewing: "bg-nocturne-raised font-semibold text-nocturne-ink",
+  track: "bg-nocturne-surface-2",
   fill: "bg-nocturne-accent",
 };
 
@@ -105,7 +107,7 @@ function useNavSections(): NavSection[] {
       ],
     },
     {
-      title: "Recruitment (HR)",
+      title: "Recruitment",
       items: [
         {
           label: "Job postings",
@@ -113,14 +115,14 @@ function useNavSections(): NavSection[] {
           icon: Briefcase,
           isActive: (p) => p.startsWith("/admin") && p !== "/admin/jobs/new",
         },
-        { label: "Post a new job", href: "/admin/jobs/new", icon: PlusCircle, isActive: (p) => p === "/admin/jobs/new" },
+        { label: "Post a job", href: "/admin/jobs/new", icon: PlusCircle, isActive: (p) => p === "/admin/jobs/new" },
       ],
     },
   ];
 }
 
 const CAREERS_ITEM: NavItem = {
-  label: "View careers site",
+  label: "Careers site",
   href: "/jobs",
   icon: ExternalLink,
   isActive: () => false,
@@ -143,11 +145,9 @@ function Brand({ theme, compact }: { theme: SidebarTheme; compact: boolean }) {
     >
       <PeakMark className="size-8 shrink-0" />
       {!compact && (
-        <span className="min-w-0 leading-tight">
-          <span className={cn("block truncate text-[0.9375rem] font-semibold", theme.brand)}>Peak Process Partners</span>
-          <span className={cn("mt-0.5 block truncate text-[0.6875rem] font-medium tracking-widest uppercase", theme.brandSub)}>
-            Workspace
-          </span>
+        <span className={cn("min-w-0 truncate text-base font-semibold tracking-[-0.02em]", theme.brand)}>
+          Peak Process
+          <span className="sr-only"> Partners</span>
         </span>
       )}
     </Link>
@@ -176,15 +176,12 @@ function NavLink({
       aria-current={active ? "page" : undefined}
       title={compact ? item.label : undefined}
       className={cn(
-        "relative flex h-10 items-center gap-3 rounded-lg text-sm font-medium transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2",
+        "relative flex h-10 items-center gap-3 rounded-nocturne-control text-sm transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2",
         compact ? "justify-center px-0" : "px-3",
         active ? theme.itemActive : theme.item,
         theme.focus,
       )}
     >
-      {active && (
-        <span aria-hidden className={cn("absolute top-2.5 bottom-2.5 left-0 w-[3px] rounded-full", theme.indicator)} />
-      )}
       <Icon className="size-[1.125rem] shrink-0" aria-hidden />
       <span className={compact ? "sr-only" : "truncate"}>{item.label}</span>
     </Link>
@@ -219,9 +216,9 @@ function OnboardingSteps({
     <div className={cn(compact ? "mt-2" : "mt-3 mb-1 ml-5 border-l pl-3", theme.divider)}>
       {!compact && (
         <div className="mb-3 pr-1">
-          <div className={cn("flex items-baseline justify-between text-[0.6875rem] font-semibold tracking-widest uppercase", theme.section)}>
+          <div className={cn("flex items-baseline justify-between text-[0.6875rem] font-bold tracking-[0.12em] uppercase", theme.section)}>
             <span>Progress</span>
-            <span className="tabular-nums">{percent}%</span>
+            <span className="font-nocturne-mono tracking-normal text-nocturne-accent-text">{percent}%</span>
           </div>
           <div
             className={cn("mt-1.5 h-1 overflow-hidden rounded-full", theme.track)}
@@ -244,7 +241,7 @@ function OnboardingSteps({
             <span
               aria-hidden
               className={cn(
-                "flex shrink-0 items-center justify-center rounded-full border text-[0.6875rem] font-semibold tabular-nums",
+                "flex shrink-0 items-center justify-center rounded-full text-[0.625rem] font-bold tabular-nums",
                 compact ? "size-7" : "size-5",
                 theme.step[status],
               )}
@@ -263,7 +260,7 @@ function OnboardingSteps({
                 className={cn(
                   "flex items-center rounded-lg text-[0.8125rem] transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2",
                   compact ? "size-9 justify-center" : "h-8 gap-2.5 px-2",
-                  viewing ? cn(theme.stepViewing, "font-medium") : theme.item,
+                  viewing ? theme.stepViewing : theme.item,
                   theme.focus,
                 )}
               >
@@ -302,7 +299,7 @@ function NavBody({
             {compact ? (
               <div aria-hidden className={cn("mx-2 mb-3 border-t", theme.divider)} />
             ) : (
-              <p className={cn("mb-2 px-3 text-[0.6875rem] font-semibold tracking-widest uppercase", theme.section)}>
+              <p className={cn("mb-2 px-3 text-[0.6875rem] font-bold tracking-[0.14em] uppercase", theme.section)}>
                 {section.title}
               </p>
             )}
@@ -322,7 +319,7 @@ function NavBody({
       <div className={cn("mt-6 flex flex-col gap-1 border-t pt-4", theme.divider)}>
         {showName && (
           <div className="mb-2 px-3">
-            <p className={cn("text-[0.6875rem] font-semibold tracking-widest uppercase", theme.section)}>Signed in as</p>
+            <p className={cn("text-[0.6875rem] font-bold tracking-[0.14em] uppercase", theme.section)}>Signed in as</p>
             <p className="mt-0.5 truncate text-sm font-medium">{fullName}</p>
           </div>
         )}
@@ -395,7 +392,7 @@ export function AppSidebar() {
   }
 
   const controlClass = cn(
-    "inline-flex items-center justify-center rounded-lg transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2",
+    "inline-flex items-center justify-center rounded-nocturne-control transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2",
     theme.control,
     theme.focus,
   );
@@ -438,7 +435,7 @@ export function AppSidebar() {
               aria-label="Navigation"
               onKeyDown={onDrawerKeyDown}
               className={cn(
-                "absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r px-4 pt-4 pb-5 shadow-2xl",
+                "absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r px-4 pt-4 pb-5 shadow-nocturne-menu",
                 theme.surface,
               )}
               initial={{ x: "-100%" }}
@@ -452,7 +449,18 @@ export function AppSidebar() {
                   <X className="size-5" aria-hidden />
                 </button>
               </div>
-              <NavBody theme={theme} compact={false} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+              <NavBody
+                theme={theme}
+                compact={false}
+                pathname={pathname}
+                onNavigate={() => setDrawerOpen(false)}
+                footer={
+                  <div className="mt-1 flex items-center justify-between gap-3 pl-3">
+                    <span className={cn("text-sm font-medium", theme.section)}>Theme</span>
+                    <NocturneThemeToggle />
+                  </div>
+                }
+              />
             </motion.div>
           </div>
         )}
@@ -476,22 +484,29 @@ export function AppSidebar() {
           compact={collapsed}
           pathname={pathname}
           footer={
-            <button
-              type="button"
-              onClick={() => setSidebarPreference(collapsed ? "expanded" : "collapsed")}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className={cn(controlClass, "h-10 gap-3 text-sm font-medium", collapsed ? "justify-center" : "justify-start px-3")}
-            >
-              {collapsed ? (
-                <ChevronsRight className="size-[1.125rem]" aria-hidden />
-              ) : (
-                <>
-                  <ChevronsLeft className="size-[1.125rem]" aria-hidden />
-                  <span>Collapse</span>
-                </>
-              )}
-            </button>
+            <div className={cn("flex gap-2", collapsed ? "flex-col-reverse items-center" : "items-center")}>
+              <button
+                type="button"
+                onClick={() => setSidebarPreference(collapsed ? "expanded" : "collapsed")}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                className={cn(
+                  controlClass,
+                  "h-10 gap-3 text-sm font-medium",
+                  collapsed ? "w-10 justify-center" : "min-w-0 flex-1 justify-start px-3",
+                )}
+              >
+                {collapsed ? (
+                  <ChevronsRight className="size-[1.125rem]" aria-hidden />
+                ) : (
+                  <>
+                    <ChevronsLeft className="size-[1.125rem]" aria-hidden />
+                    <span>Collapse</span>
+                  </>
+                )}
+              </button>
+              <NocturneThemeToggle />
+            </div>
           }
         />
       </aside>
