@@ -40,7 +40,7 @@ export function AdminClerkSignIn({
     <SignIn
       routing="path"
       path="/admin/login"
-      fallbackRedirectUrl="/admin/jobs"
+      fallbackRedirectUrl="/admin"
       withSignUp
       appearance={{
         variables: {

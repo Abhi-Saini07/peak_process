@@ -5,7 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 // to /admin; the careers and onboarding pages don't load it.
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <ClerkProvider signInUrl="/admin/login" signInFallbackRedirectUrl="/admin/jobs">
+    <ClerkProvider signInUrl="/admin/login" signInFallbackRedirectUrl="/admin">
       {children}
     </ClerkProvider>
   );

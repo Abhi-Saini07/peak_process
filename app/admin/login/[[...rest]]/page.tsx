@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Admin Sign In | Peak Process Partner
 // Catch-all so Clerk's multi-step sign-in (/admin/login/factor-one, …) stays on this page.
 export default async function AdminLoginPage() {
   const access = await resolveAdminAccess();
-  if (access.status === "ok") redirect("/admin/jobs");
+  if (access.status === "ok") redirect("/admin");
   if (access.status === "forbidden") return <AdminNoAccess email={access.email} />;
   return <AdminLoginNocturne />;
 }

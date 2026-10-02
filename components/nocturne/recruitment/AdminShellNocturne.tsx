@@ -163,6 +163,7 @@ function crumbsFor(pathname: string): Crumb[] {
     return [root, postings, { label: "Edit job" }];
   }
   if (parts[1] === "applications") return [root, postings, { label: "Application" }];
+  if (parts.length === 1) return [root, { label: "Dashboard" }];
   return [root];
 }
 

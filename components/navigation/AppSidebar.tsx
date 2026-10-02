@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Briefcase,
+  Gauge,
   Check,
   ChevronsLeft,
   ChevronsRight,
@@ -109,11 +110,12 @@ function useNavSections(): NavSection[] {
     {
       title: "Recruitment",
       items: [
+        { label: "Dashboard", href: "/admin", icon: Gauge, isActive: (p) => p === "/admin" },
         {
           label: "Job postings",
           href: "/admin/jobs",
           icon: Briefcase,
-          isActive: (p) => p.startsWith("/admin") && p !== "/admin/jobs/new",
+          isActive: (p) => p.startsWith("/admin/") && p !== "/admin/jobs/new",
         },
         { label: "Post a job", href: "/admin/jobs/new", icon: PlusCircle, isActive: (p) => p === "/admin/jobs/new" },
       ],
