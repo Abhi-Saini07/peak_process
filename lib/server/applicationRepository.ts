@@ -6,6 +6,8 @@ import { applicationReferenceFromId } from "@/lib/recruitment/reference";
 import { isJobOpenForApplications } from "@/lib/server/jobRepository";
 import type { JobApplicationFormData } from "@/lib/schemas/application.schema";
 import type { ApplicationStatus as AppStatus } from "@/lib/recruitment/constants";
+import { canTransition } from "@/lib/recruitment/stages";
+import type { RejectInput } from "@/lib/recruitment/rejection";
 import type {
   ApplicationDetail,
   ApplicationDocumentMeta,
@@ -42,6 +44,8 @@ function mapSummary(app: ApplicationWithRelations): ApplicationSummary {
     experienceYears: app.candidate.experienceYears,
     status: app.status,
     appliedAt: toISO(app.appliedAt),
+    stageEnteredAt: toISO(app.stageEnteredAt),
+    rejectReason: app.rejectReason,
   };
 }
 
@@ -62,6 +66,8 @@ function mapHistory(entry: ApplicationWithRelations["statusHistory"][number]): A
     newStatus: entry.newStatus,
     changedByName: entry.changedByAdmin?.fullName ?? null,
     changedAt: toISO(entry.changedAt),
+    rejectReason: entry.rejectReason,
+    rejectNote: entry.rejectNote,
   };
 }
 
@@ -75,6 +81,7 @@ function mapDetail(app: ApplicationWithRelations): ApplicationDetail {
     linkedinUrl: app.candidate.linkedinUrl,
     portfolioUrl: app.candidate.portfolioUrl,
     coverLetter: app.coverLetter,
+    rejectNote: app.rejectNote,
     documents: app.documents.map(mapDocument),
     history: app.statusHistory.map(mapHistory),
   };
@@ -139,6 +146,7 @@ export async function createApplication(
       jobId: input.jobId,
       candidateId: candidate.id,
       status: "applied",
+      stageEnteredAt: new Date(),
       coverLetter: input.data.coverLetter || null,
     },
   });
@@ -162,22 +170,54 @@ export async function createApplication(
   return { applicationId: application.id, reference: applicationReferenceFromId(application.id) };
 }
 
+export type StatusChangeResult =
+  | { ok: true }
+  | { error: string; code: "not_found" | "illegal_transition" | "conflict" };
+
+/**
+ * Moves an application to `newStatus` if STAGE_TRANSITIONS allows it. The
+ * status, stageEnteredAt, the reject reason (on rejection) and the history
+ * row are written in one short transaction; the update is conditional on the
+ * status not having changed since it was read, so two HR people moving the
+ * same card can't both win.
+ */
 export async function updateApplicationStatus(
   id: string,
   newStatus: AppStatus,
   adminId: string,
-): Promise<{ ok: true } | { error: string }> {
+  reject: RejectInput | null = null,
+): Promise<StatusChangeResult> {
   const app = await prisma.jobApplication.findUnique({ where: { id }, select: { status: true } });
-  if (!app) return { error: "Application not found" };
-  if (app.status === newStatus) return { ok: true };
+  if (!app) return { error: "Application not found", code: "not_found" };
+  if (!canTransition(app.status, newStatus)) {
+    return { error: `Can't move an application from ${app.status} to ${newStatus}.`, code: "illegal_transition" };
+  }
 
-  await prisma.$transaction([
-    prisma.jobApplication.update({ where: { id }, data: { status: newStatus } }),
-    prisma.applicationStatusHistory.create({
-      data: { applicationId: id, oldStatus: app.status, newStatus, changedByAdminId: adminId },
-    }),
-  ]);
+  const now = new Date();
+  const rejectReason = newStatus === "rejected" ? (reject?.reason ?? null) : null;
+  const rejectNote = newStatus === "rejected" ? (reject?.note ?? null) : null;
 
+  const moved = await prisma.$transaction(async (tx) => {
+    const updated = await tx.jobApplication.updateMany({
+      where: { id, status: app.status },
+      data: { status: newStatus, stageEnteredAt: now, rejectReason, rejectNote },
+    });
+    if (updated.count === 0) return false;
+    await tx.applicationStatusHistory.create({
+      data: {
+        applicationId: id,
+        oldStatus: app.status,
+        newStatus,
+        changedByAdminId: adminId,
+        changedAt: now,
+        rejectReason,
+        rejectNote,
+      },
+    });
+    return true;
+  });
+
+  if (!moved) return { error: "This application was just updated by someone else. Refresh and try again.", code: "conflict" };
   return { ok: true };
 }
 

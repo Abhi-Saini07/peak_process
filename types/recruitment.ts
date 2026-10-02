@@ -1,3 +1,4 @@
+import type { RejectReason } from "@/lib/recruitment/rejection";
 import type {
   ApplicationStatus,
   EmploymentType,
@@ -71,6 +72,9 @@ export interface ApplicationSummary {
   experienceYears: number | null;
   status: ApplicationStatus;
   appliedAt: string;
+  /** When the application entered its current status (ISO). */
+  stageEnteredAt: string;
+  rejectReason: RejectReason | null;
 }
 
 export interface ApplicationStatusHistoryEntry {
@@ -79,6 +83,8 @@ export interface ApplicationStatusHistoryEntry {
   newStatus: ApplicationStatus;
   changedByName: string | null;
   changedAt: string;
+  rejectReason: RejectReason | null;
+  rejectNote: string | null;
 }
 
 export interface ApplicationDocumentMeta {
@@ -97,6 +103,7 @@ export interface ApplicationDetail extends ApplicationSummary {
   linkedinUrl: string | null;
   portfolioUrl: string | null;
   coverLetter: string | null;
+  rejectNote: string | null;
   documents: ApplicationDocumentMeta[];
   history: ApplicationStatusHistoryEntry[];
 }

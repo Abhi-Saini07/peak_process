@@ -234,6 +234,19 @@ enum ApplicationStatus {
   rejected
 }
 
+/// Why an application was rejected. Labels and keyboard shortcuts live in
+/// lib/recruitment/rejection.ts.
+enum RejectReason {
+  skills_experience
+  location_workmode
+  compensation
+  failed_knockout
+  stronger_candidates
+  incomplete_unresponsive
+  withdrew
+  other
+}
+
 enum ApplicationDocumentType {
   resume
   other
@@ -319,13 +332,21 @@ model Candidate {
 /// the same job. Only ever holds the CURRENT status; see
 /// ApplicationStatusHistory for the transition log.
 model JobApplication {
-  id          String            @id @default(uuid()) @db.Char(36)
-  jobId       String            @map("job_id") @db.Char(36)
-  candidateId String            @map("candidate_id") @db.Char(36)
-  status      ApplicationStatus @default(applied)
-  coverLetter String?           @map("cover_letter") @db.Text
-  appliedAt   DateTime          @default(now()) @map("applied_at") @db.Timestamptz(3)
-  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id             String            @id @default(uuid()) @db.Char(36)
+  jobId          String            @map("job_id") @db.Char(36)
+  candidateId    String            @map("candidate_id") @db.Char(36)
+  status         ApplicationStatus @default(applied)
+  coverLetter    String?           @map("cover_letter") @db.Text
+  appliedAt      DateTime          @default(now()) @map("applied_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// When the application entered its current status (set on create and on
+  /// every status change) — drives "days in stage".
+  stageEnteredAt DateTime          @default(now()) @map("stage_entered_at") @db.Timestamptz(3)
+  /// Set only while status = rejected (see lib/recruitment/rejection.ts).
+  /// CHECK chk_job_applications_reject_reason (raw SQL in migration
+  /// rejection_reasons_stage_rules) enforces that, and that "other" has a note.
+  rejectReason   RejectReason?     @map("reject_reason")
+  rejectNote     String?           @map("reject_note") @db.Text
 
   job           Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidate     Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
@@ -367,6 +388,9 @@ model ApplicationStatusHistory {
   newStatus        ApplicationStatus  @map("new_status")
   changedByAdminId String?            @map("changed_by_admin_id") @db.Char(36)
   changedAt        DateTime           @default(now()) @map("changed_at") @db.Timestamptz(3)
+  /// Copied from the application on the transition into "rejected".
+  rejectReason     RejectReason?      @map("reject_reason")
+  rejectNote       String?            @map("reject_note") @db.Text
 
   application    JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   changedByAdmin AdminUser?     @relation(fields: [changedByAdminId], references: [id], onDelete: SetNull)

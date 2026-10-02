@@ -2,18 +2,37 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TERMINAL_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/recruitment/constants";
+import type { ApplicationStatus } from "@/lib/recruitment/constants";
+import { nextStages } from "@/lib/recruitment/stages";
+import type { RejectInput } from "@/lib/recruitment/rejection";
 
-const PIPELINE_ORDER: ApplicationStatus[] = ["applied", "under_review", "shortlisted", "interview", "selected"];
+/** Which status buttons to show next. Comes straight from STAGE_TRANSITIONS,
+ *  the same map the API enforces: one step forward, or "Reject". */
+export function availableNextStatuses(current: ApplicationStatus): readonly ApplicationStatus[] {
+  return nextStages(current);
+}
 
-/** Which status buttons make sense to show next — every pipeline stage
- *  ahead of the current one, plus "Reject" from any non-terminal state.
- *  Never lets HR move an application backwards or act on a terminal one. */
-export function availableNextStatuses(current: ApplicationStatus): ApplicationStatus[] {
-  if (TERMINAL_APPLICATION_STATUSES.includes(current)) return [];
-  const currentIndex = PIPELINE_ORDER.indexOf(current);
-  const forward = PIPELINE_ORDER.slice(currentIndex + 1);
-  return [...forward, "rejected"];
+/** PATCH the status. Resolves to true on success, so callers (the reject
+ *  dialog, the Kanban board) can close or roll back. */
+export async function patchApplicationStatus(
+  applicationId: string,
+  status: ApplicationStatus,
+  reject: RejectInput | null = null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`/api/admin/applications/${applicationId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        reject ? { status, rejectReason: reject.reason, rejectNote: reject.note } : { status },
+      ),
+    });
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => null);
+    return { ok: false, error: body?.error ?? "Couldn't update the application status." };
+  } catch {
+    return { ok: false, error: "Couldn't reach the server. Check your connection and try again." };
+  }
 }
 
 export function useApplicationStatusActions(applicationId: string) {
@@ -21,23 +40,18 @@ export function useApplicationStatusActions(applicationId: string) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function setStatus(status: ApplicationStatus) {
+  async function setStatus(status: ApplicationStatus, reject: RejectInput | null = null): Promise<boolean> {
     setIsUpdating(true);
     setError(null);
-    const res = await fetch(`/api/admin/applications/${applicationId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
+    const result = await patchApplicationStatus(applicationId, status, reject);
     setIsUpdating(false);
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      setError(body?.error ?? "Couldn't update the application status.");
-      return;
+    if (!result.ok) {
+      setError(result.error);
+      return false;
     }
     router.refresh();
+    return true;
   }
 
-  return { setStatus, isUpdating, error };
+  return { setStatus, isUpdating, error, clearError: () => setError(null) };
 }

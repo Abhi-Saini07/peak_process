@@ -5,6 +5,9 @@ import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { applicationStatusLabel, educationLabel } from "@/lib/recruitment/constants";
 import { availableNextStatuses, useApplicationStatusActions } from "@/hooks/recruitment/useApplicationStatusActions";
+import { useRejectReasonPicker } from "@/hooks/recruitment/useRejectReasonPicker";
+import { rejectReasonLabel } from "@/lib/recruitment/rejection";
+import { RejectReasonDialog } from "@/components/nocturne/recruitment/RejectReasonDialog";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import { formatBytes } from "@/lib/utils/formatBytes";
 import {
@@ -43,8 +46,9 @@ function PanelTitle({ children }: { children: string }) {
 }
 
 export function AdminApplicationDetailNocturne({ application }: { application: ApplicationDetail }) {
-  const { setStatus, isUpdating, error } = useApplicationStatusActions(application.id);
+  const { setStatus, isUpdating, error, clearError } = useApplicationStatusActions(application.id);
   const nextStatuses = availableNextStatuses(application.status);
+  const rejectPicker = useRejectReasonPicker((input) => setStatus("rejected", input));
 
   return (
     <div>
@@ -171,7 +175,14 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
                     key={status}
                     type="button"
                     disabled={isUpdating}
-                    onClick={() => setStatus(status)}
+                    onClick={() => {
+                      if (status === "rejected") {
+                        clearError();
+                        rejectPicker.open();
+                      } else {
+                        void setStatus(status);
+                      }
+                    }}
                     className={nocturneButtonVariants({
                       variant: status === "rejected" ? "secondary" : "primary",
                       size: "sm",
@@ -182,7 +193,16 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
                 ))}
               </div>
             ) : null}
-            {error && (
+            {application.status === "rejected" && application.rejectReason && (
+              <div className="rounded-nocturne-control bg-nocturne-raised px-3.5 py-3 text-sm">
+                <p className={adminLabelClass}>Reason</p>
+                <p className="mt-1 font-semibold text-nocturne-ink">{rejectReasonLabel(application.rejectReason)}</p>
+                {application.rejectNote && (
+                  <p className="mt-1 whitespace-pre-line text-nocturne-ink-muted">{application.rejectNote}</p>
+                )}
+              </div>
+            )}
+            {error && !rejectPicker.isOpen && (
               <p className="text-sm text-nocturne-error" role="alert">
                 {error}
               </p>
@@ -212,6 +232,12 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
                     <span className="font-bold">{applicationStatusLabel(entry.newStatus)}</span>
                     {entry.changedByName && <span className="text-nocturne-ink-muted"> · by {entry.changedByName}</span>}
                   </span>
+                  {entry.rejectReason && (
+                    <span className="text-nocturne-ink-muted">
+                      Reason: <span className="font-semibold text-nocturne-ink">{rejectReasonLabel(entry.rejectReason)}</span>
+                      {entry.rejectNote && <span className="block whitespace-pre-line">{entry.rejectNote}</span>}
+                    </span>
+                  )}
                   <span className="nocturne-mono text-xs text-nocturne-ink-muted">{formatDateTime(entry.changedAt)}</span>
                 </li>
               ))}
@@ -219,6 +245,8 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
           </section>
         </aside>
       </div>
+
+      <RejectReasonDialog picker={rejectPicker} candidateName={application.candidateName} serverError={error} />
     </div>
   );
 }
