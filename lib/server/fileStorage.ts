@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "crypto";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { Readable } from "stream";
 
 /**
@@ -77,4 +77,17 @@ export async function readStoredFile(storagePath: string): Promise<Buffer> {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
+}
+
+/** Removes a stored object, e.g. an upload whose database write then failed.
+ *  Best effort: logs and returns false instead of throwing, so cleanup never
+ *  hides the error that caused it. */
+export async function deleteStoredFile(storagePath: string): Promise<boolean> {
+  try {
+    await getClient().send(new DeleteObjectCommand({ Bucket: getBucket(), Key: storagePath }));
+    return true;
+  } catch (error) {
+    console.error(`Couldn't delete stored file ${storagePath}`, error);
+    return false;
+  }
 }

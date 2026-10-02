@@ -1,7 +1,8 @@
 import "server-only";
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { saveUploadedFile, readStoredFile } from "@/lib/server/fileStorage";
+import { deleteStoredFile, readStoredFile, saveUploadedFile, type SavedFileMeta } from "@/lib/server/fileStorage";
 import { applicationReferenceFromId } from "@/lib/recruitment/reference";
 import { isJobOpenForApplications } from "@/lib/server/jobRepository";
 import type { JobApplicationFormData } from "@/lib/schemas/application.schema";
@@ -166,12 +167,19 @@ interface CreateApplicationInput {
   /** The job's questions as loaded on the server, and the candidate's answers. */
   knockoutQuestions: KnockoutQuestion[];
   knockoutAnswers: Record<string, boolean>;
+  consentVersion: string;
 }
 
-/** Finds-or-creates the candidate by email (so the same person can apply to
- *  multiple jobs), re-checks job availability server-side, blocks a second
- *  application to the same job, then creates the application + initial
- *  status-history row + saves the resume (and optional other file). */
+const DUPLICATE_APPLICATION = "You've already applied to this position.";
+
+/**
+ * Finds-or-creates the candidate by email (so the same person can apply to
+ * multiple jobs), re-checks job availability, blocks a second application to
+ * the same job, then saves everything. Files go to storage first; the
+ * candidate, application, history row and documents are then written in one
+ * transaction, and if that fails the uploaded files are deleted again, so a
+ * failure never leaves orphaned objects or half an application behind.
+ */
 export async function createApplication(
   input: CreateApplicationInput,
 ): Promise<{ applicationId: string; reference: string } | { error: string }> {
@@ -179,6 +187,32 @@ export async function createApplication(
   if (!jobOpen) return { error: "This position is no longer accepting applications." };
 
   const email = input.data.email.trim().toLowerCase();
+  // Cheap early check so a repeat applicant doesn't upload files for nothing.
+  // The unique index on (job_id, candidate_id) still decides inside the transaction.
+  const existing = await prisma.jobApplication.findFirst({
+    where: { jobId: input.jobId, candidate: { email } },
+    select: { id: true },
+  });
+  if (existing) return { error: DUPLICATE_APPLICATION };
+
+  const applicationId = randomUUID();
+  const uploaded: SavedFileMeta[] = [];
+  const documents: { documentType: "resume" | "other"; meta: SavedFileMeta }[] = [];
+  try {
+    const files = [
+      { documentType: "resume" as const, file: input.resumeFile },
+      ...(input.otherFile ? [{ documentType: "other" as const, file: input.otherFile }] : []),
+    ];
+    for (const { documentType, file } of files) {
+      const meta = await saveUploadedFile(file, `applications/${applicationId}`);
+      uploaded.push(meta);
+      documents.push({ documentType, meta });
+    }
+  } catch (error) {
+    await Promise.all(uploaded.map((meta) => deleteStoredFile(meta.storagePath)));
+    throw error;
+  }
+
   const candidateFields = {
     firstName: input.data.firstName,
     lastName: input.data.lastName,
@@ -189,51 +223,50 @@ export async function createApplication(
     linkedinUrl: input.data.linkedinUrl || null,
     portfolioUrl: input.data.portfolioUrl || null,
   };
+  const now = new Date();
 
-  const candidate = await prisma.candidate.upsert({
-    where: { email },
-    update: candidateFields,
-    create: { email, ...candidateFields },
-  });
-
-  const alreadyApplied = await prisma.jobApplication.findUnique({
-    where: { jobId_candidateId: { jobId: input.jobId, candidateId: candidate.id } },
-  });
-  if (alreadyApplied) return { error: "You've already applied to this position." };
-
-  const application = await prisma.jobApplication.create({
-    data: {
-      jobId: input.jobId,
-      candidateId: candidate.id,
-      status: "applied",
-      stageEnteredAt: new Date(),
-      coverLetter: input.data.coverLetter || null,
-      // Recomputed here from the stored questions; the client's view is never trusted.
-      knockoutAnswers:
-        input.knockoutQuestions.length > 0
-          ? snapshotKnockoutAnswers(input.knockoutQuestions, input.knockoutAnswers)
-          : Prisma.DbNull,
-      knockoutFlagged: computeKnockoutFlag(input.knockoutQuestions, input.knockoutAnswers),
-    },
-  });
-
-  await prisma.applicationStatusHistory.create({
-    data: { applicationId: application.id, oldStatus: null, newStatus: "applied", changedByAdminId: null },
-  });
-
-  const resumeMeta = await saveUploadedFile(input.resumeFile, `applications/${application.id}`);
-  await prisma.applicationDocument.create({
-    data: { applicationId: application.id, documentType: "resume", ...resumeMeta },
-  });
-
-  if (input.otherFile) {
-    const otherMeta = await saveUploadedFile(input.otherFile, `applications/${application.id}`);
-    await prisma.applicationDocument.create({
-      data: { applicationId: application.id, documentType: "other", ...otherMeta },
+  try {
+    await prisma.$transaction(async (tx) => {
+      const candidate = await tx.candidate.upsert({
+        where: { email },
+        update: candidateFields,
+        create: { email, ...candidateFields },
+      });
+      await tx.jobApplication.create({
+        data: {
+          id: applicationId,
+          jobId: input.jobId,
+          candidateId: candidate.id,
+          status: "applied",
+          stageEnteredAt: now,
+          coverLetter: input.data.coverLetter || null,
+          // Recomputed here from the stored questions; the client's view is never trusted.
+          knockoutAnswers:
+            input.knockoutQuestions.length > 0
+              ? snapshotKnockoutAnswers(input.knockoutQuestions, input.knockoutAnswers)
+              : Prisma.DbNull,
+          knockoutFlagged: computeKnockoutFlag(input.knockoutQuestions, input.knockoutAnswers),
+          consentedAt: now,
+          consentVersion: input.consentVersion,
+        },
+      });
+      await tx.applicationStatusHistory.create({
+        data: { applicationId, oldStatus: null, newStatus: "applied", changedByAdminId: null, changedAt: now },
+      });
+      await tx.applicationDocument.createMany({
+        data: documents.map(({ documentType, meta }) => ({ applicationId, documentType, ...meta })),
+      });
     });
+  } catch (error) {
+    await Promise.all(uploaded.map((meta) => deleteStoredFile(meta.storagePath)));
+    // Lost a race with a second submission for the same job.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { error: DUPLICATE_APPLICATION };
+    }
+    throw error;
   }
 
-  return { applicationId: application.id, reference: applicationReferenceFromId(application.id) };
+  return { applicationId, reference: applicationReferenceFromId(applicationId) };
 }
 
 export type StatusChangeResult =

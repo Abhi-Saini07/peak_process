@@ -356,6 +356,11 @@ model JobApplication {
   /// the server (computeKnockoutFlag) and never auto-rejects.
   knockoutAnswers Json?             @map("knockout_answers")
   knockoutFlagged Boolean           @default(false) @map("knockout_flagged")
+  /// When the applicant agreed to the privacy notice, and which version
+  /// (PRIVACY_CONSENT_VERSION in lib/recruitment/consent.ts). Null on
+  /// applications made before consent was collected.
+  consentedAt     DateTime?         @map("consented_at") @db.Timestamptz(3)
+  consentVersion  String?           @map("consent_version") @db.VarChar(20)
 
   job           Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidate     Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)

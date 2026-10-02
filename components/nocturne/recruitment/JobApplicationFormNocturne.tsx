@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { FileText, Paperclip } from "lucide-react";
 import { useJobApplicationFormLogic } from "@/hooks/recruitment/useJobApplicationFormLogic";
 import { EDUCATION_OPTIONS } from "@/lib/recruitment/constants";
@@ -19,6 +20,10 @@ import { NocturneTextField } from "@/components/nocturne/ui/NocturneTextField";
 import { NocturneTextareaField } from "@/components/nocturne/ui/NocturneTextareaField";
 import { NocturneSelectField } from "@/components/nocturne/ui/NocturneSelectField";
 import { NocturneButton, nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
+import { NocturneCheckbox } from "@/components/nocturne/ui/NocturneCheckbox";
+import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_LABEL } from "@/lib/recruitment/uploads";
+import { HONEYPOT_FIELD } from "@/lib/schemas/application.schema";
+import { ORGANIZATION_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils/cn";
 import { formatBytes } from "@/lib/utils/formatBytes";
 import type { PublicJobDetail } from "@/types/recruitment";
@@ -160,6 +165,7 @@ export function JobApplicationFormNocturne({ job }: { job: PublicJobDetail }) {
     resumeError,
     otherFile,
     setOtherFile,
+    otherError,
     onContinue,
   } = useJobApplicationFormLogic(job.id, job.knockouts);
 
@@ -268,18 +274,26 @@ export function JobApplicationFormNocturne({ job }: { job: PublicJobDetail }) {
                           {resumeFile ? resumeFile.name : "Upload your resume"}
                         </span>
                         <span className="block text-xs text-nocturne-ink-muted">
-                          {resumeFile ? formatBytes(resumeFile.size) : "PDF or Word"}
+                          {resumeFile ? formatBytes(resumeFile.size) : `PDF or Word, up to ${MAX_UPLOAD_LABEL}`}
                         </span>
                       </span>
                       <span className={uploadButtonClass}>{resumeFile ? "Replace file" : "Browse"}</span>
                       <input
                         type="file"
-                        accept=".pdf,.doc,.docx"
+                        accept={ACCEPT_ATTRIBUTE}
                         className="sr-only"
-                        onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
+                        aria-describedby="resume-error"
+                        onChange={(e) => {
+                          void setResumeFile(e.target.files?.[0] ?? null);
+                          e.target.value = "";
+                        }}
                       />
                     </label>
-                    <p className="mt-1.5 min-h-4.25 text-[0.8125rem] text-nocturne-error" role={resumeError ? "alert" : undefined}>
+                    <p
+                      id="resume-error"
+                      className="mt-1.5 min-h-4.25 text-[0.8125rem] text-nocturne-error"
+                      role={resumeError ? "alert" : undefined}
+                    >
                       {resumeError || " "}
                     </p>
                   </div>
@@ -304,22 +318,74 @@ export function JobApplicationFormNocturne({ job }: { job: PublicJobDetail }) {
                     />
                   </div>
 
-                  <label className={uploadRowClass}>
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-nocturne-control bg-nocturne-raised"><Paperclip className="size-4.5 text-nocturne-ink-muted" aria-hidden /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-nocturne-ink">
-                        {otherFile ? otherFile.name : "Attach additional document (optional)"}
+                  <div>
+                    <label className={cn(uploadRowClass, otherError && "border-nocturne-error hover:border-nocturne-error")}>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-nocturne-control bg-nocturne-raised"><Paperclip className="size-4.5 text-nocturne-ink-muted" aria-hidden /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-nocturne-ink">
+                          {otherFile ? otherFile.name : "Attach additional document (optional)"}
+                        </span>
+                        <span className="block text-xs text-nocturne-ink-muted">
+                          {otherFile ? formatBytes(otherFile.size) : `PDF or Word, up to ${MAX_UPLOAD_LABEL}`}
+                        </span>
                       </span>
-                      {otherFile && <span className="block text-xs text-nocturne-ink-muted">{formatBytes(otherFile.size)}</span>}
-                    </span>
-                    <span className={uploadButtonClass}>{otherFile ? "Replace file" : "Browse"}</span>
-                    <input type="file" className="sr-only" onChange={(e) => setOtherFile(e.target.files?.[0] ?? null)} />
-                  </label>
+                      <span className={uploadButtonClass}>{otherFile ? "Replace file" : "Browse"}</span>
+                      <input
+                        type="file"
+                        accept={ACCEPT_ATTRIBUTE}
+                        className="sr-only"
+                        aria-describedby={otherError ? "other-error" : undefined}
+                        onChange={(e) => {
+                          void setOtherFile(e.target.files?.[0] ?? null);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {otherError && (
+                      <p id="other-error" className="mt-1.5 text-[0.8125rem] text-nocturne-error" role="alert">
+                        {otherError}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </FormSection>
 
               <FormSection step={3} title="Review" description="Check your details above, then send your application.">
                 <div className="flex flex-col gap-4">
+                  <div>
+                    <NocturneCheckbox
+                      {...register("consent")}
+                      id="apply-consent"
+                      aria-invalid={Boolean(errors.consent) || undefined}
+                      aria-describedby={errors.consent ? "apply-consent-error" : undefined}
+                      label={
+                        <>
+                          I agree that {ORGANIZATION_NAME} may store and use my details to consider me for this and
+                          similar roles, as described in the{" "}
+                          <Link
+                            href="/privacy"
+                            target="_blank"
+                            className="font-semibold text-nocturne-accent-text underline underline-offset-2 hover:no-underline"
+                          >
+                            privacy notice
+                          </Link>
+                          . <span className="text-nocturne-accent-text">*</span>
+                        </>
+                      }
+                    />
+                    {errors.consent?.message && (
+                      <p id="apply-consent-error" className="mt-1.5 pl-7.5 text-[0.8125rem] text-nocturne-error" role="alert">
+                        {errors.consent.message}
+                      </p>
+                    )}
+                  </div>
+                  {/* Honeypot: hidden from people and assistive tech; bots that fill it get a fake success. */}
+                  <div aria-hidden className="absolute -left-[9999px] size-px overflow-hidden">
+                    <label>
+                      Company website
+                      <input type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" defaultValue="" />
+                    </label>
+                  </div>
                   {submitError && (
                     <p className="nocturne-type-meta rounded-nocturne-control bg-nocturne-error-tint px-4 py-3 text-nocturne-error" role="alert">
                       {submitError}

@@ -11,6 +11,18 @@ import {
   type JobApplicationWithKnockoutsInput,
 } from "@/lib/schemas/application.schema";
 import type { PublicKnockoutQuestion } from "@/lib/recruitment/knockouts";
+import { HONEYPOT_FIELD } from "@/lib/schemas/application.schema";
+import { MAGIC_BYTES_NEEDED, validateDocument } from "@/lib/recruitment/uploads";
+
+async function checkDocument(file: File, what: string): Promise<string | null> {
+  try {
+    const head = new Uint8Array(await file.slice(0, MAGIC_BYTES_NEEDED).arrayBuffer());
+    const result = validateDocument({ name: file.name, type: file.type, size: file.size }, head, what);
+    return result.ok ? null : result.error;
+  } catch {
+    return `${what} couldn't be read. Choose the file again.`;
+  }
+}
 import { getDraft, useJobApplicationDraftStore } from "@/lib/store/jobApplicationDraftStore";
 
 export function useJobApplicationFormLogic(jobId: string, knockouts: readonly PublicKnockoutQuestion[] = []) {
@@ -24,6 +36,7 @@ export function useJobApplicationFormLogic(jobId: string, knockouts: readonly Pu
   const [resumeFile, setResumeFileState] = useState<File | null>(draft.resumeFile);
   const [otherFile, setOtherFileState] = useState<File | null>(draft.otherFile);
   const [resumeError, setResumeError] = useState<string | null>(null);
+  const [otherError, setOtherError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const schema = useMemo(() => jobApplicationSchemaFor(knockouts), [knockouts]);
 
@@ -34,7 +47,7 @@ export function useJobApplicationFormLogic(jobId: string, knockouts: readonly Pu
     formState: { errors, isSubmitting },
   } = useForm<JobApplicationWithKnockoutsInput, unknown, JobApplicationWithKnockoutsData>({
     resolver: zodResolver(schema),
-    defaultValues: { ...jobApplicationDefaults, knockoutAnswers: {}, ...draft.values },
+    defaultValues: { ...jobApplicationDefaults, knockoutAnswers: {}, consent: false, ...draft.values },
   });
 
   // Mirrors onboarding's useOnboardingForm watch()-to-store bridge: pushes
@@ -47,25 +60,41 @@ export function useJobApplicationFormLogic(jobId: string, knockouts: readonly Pu
     return () => subscription.unsubscribe();
   }, [watch, jobId, updateValues]);
 
-  function setResumeFile(file: File | null) {
-    setResumeFileState(file);
-    setResumeFileInStore(jobId, file);
+  // Same checks as the API (type, size, first bytes), so a bad file is caught on pick.
+  async function setResumeFile(file: File | null) {
+    const error = file ? await checkDocument(file, "Your resume") : null;
+    setResumeError(error);
+    const accepted = error ? null : file;
+    setResumeFileState(accepted);
+    setResumeFileInStore(jobId, accepted);
   }
 
-  function setOtherFile(file: File | null) {
-    setOtherFileState(file);
-    setOtherFileInStore(jobId, file);
+  async function setOtherFile(file: File | null) {
+    const error = file ? await checkDocument(file, "The additional document") : null;
+    setOtherError(error);
+    const accepted = error ? null : file;
+    setOtherFileState(accepted);
+    setOtherFileInStore(jobId, accepted);
   }
 
-  const onContinue = handleSubmit(async (data) => {
+  const onContinue = handleSubmit(async (data, event) => {
     setSubmitError(null);
     if (!resumeFile) {
       setResumeError("Please attach your resume.");
       return;
     }
+    const fileError = await checkDocument(resumeFile, "Your resume");
+    if (fileError) {
+      setResumeError(fileError);
+      return;
+    }
     setResumeError(null);
 
     const formData = new FormData();
+    // The honeypot isn't a form field in react-hook-form; read it off the form element.
+    const form = event?.target instanceof HTMLFormElement ? event.target : null;
+    const honeypot = form ? new FormData(form).get(HONEYPOT_FIELD) : null;
+    if (typeof honeypot === "string" && honeypot) formData.set(HONEYPOT_FIELD, honeypot);
     const { knockoutAnswers, ...fields } = data;
     Object.entries(fields).forEach(([key, value]) => {
       if (value !== undefined && value !== null) formData.set(key, String(value));
@@ -74,7 +103,13 @@ export function useJobApplicationFormLogic(jobId: string, knockouts: readonly Pu
     formData.set("resume", resumeFile);
     if (otherFile) formData.set("other", otherFile);
 
-    const res = await fetch(`/api/jobs/${jobId}/apply`, { method: "POST", body: formData });
+    let res: Response;
+    try {
+      res = await fetch(`/api/jobs/${jobId}/apply`, { method: "POST", body: formData });
+    } catch {
+      setSubmitError("Couldn't reach the server. Check your connection and try again.");
+      return;
+    }
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
@@ -97,6 +132,7 @@ export function useJobApplicationFormLogic(jobId: string, knockouts: readonly Pu
     resumeError,
     otherFile,
     setOtherFile,
+    otherError,
     onContinue,
   };
 }

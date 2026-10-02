@@ -24,8 +24,9 @@ export const jobApplicationSchema = z.object({
   ),
   education: educationLevelSchema,
   coverLetter: z.string().max(4000).optional().or(z.literal("")),
-  linkedinUrl: z.url("Enter a valid URL").optional().or(z.literal("")),
-  portfolioUrl: z.url("Enter a valid URL").optional().or(z.literal("")),
+  // Columns are VARCHAR(500).
+  linkedinUrl: z.url("Enter a valid URL").max(500, "Keep the link under 500 characters").optional().or(z.literal("")),
+  portfolioUrl: z.url("Enter a valid URL").max(500, "Keep the link under 500 characters").optional().or(z.literal("")),
 });
 
 export type JobApplicationFormData = z.infer<typeof jobApplicationSchema>;
@@ -50,13 +51,28 @@ export const jobApplicationDefaults = {
  *  for each of the job's screening questions. Used by the form (zodResolver)
  *  and by POST /api/jobs/[id]/apply, built from the job's current questions. */
 export function jobApplicationSchemaFor(knockouts: readonly PublicKnockoutQuestion[]) {
-  return jobApplicationSchema.extend({ knockoutAnswers: knockoutAnswersSchemaFor(knockouts) });
+  return jobApplicationSchema.extend({
+    knockoutAnswers: knockoutAnswersSchemaFor(knockouts),
+    // A checkbox on the form; "true" when it arrives as multipart form data.
+    consent: z.preprocess(
+      (val) => val === true || val === "true" || val === "on",
+      z.literal(true, { error: "Please agree to the privacy notice to apply." }),
+    ),
+  });
 }
 
 export type KnockoutAnswerValue = "yes" | "no";
 export type JobApplicationWithKnockoutsInput = JobApplicationFormInput & {
   knockoutAnswers: Record<string, KnockoutAnswerValue>;
+  /** A checkbox (boolean) on the form, a string in multipart data. */
+  consent: unknown;
 };
 export type JobApplicationWithKnockoutsData = JobApplicationFormData & {
   knockoutAnswers: Record<string, KnockoutAnswerValue>;
+  consent: true;
 };
+
+/** Hidden "company website" field on the apply form. People never see or fill
+ *  it (aria-hidden, tabIndex -1, autoComplete off); bots that fill every input
+ *  do, and the API then answers with a fake success and saves nothing. */
+export const HONEYPOT_FIELD = "company_website";

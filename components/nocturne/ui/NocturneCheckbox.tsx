@@ -1,9 +1,9 @@
-import { forwardRef, type InputHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 interface NocturneCheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
-  label: string;
+  label: ReactNode;
 }
 
 /** Nocturne checkbox: a soft 6px square on the field surface with the
