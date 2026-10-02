@@ -9,6 +9,7 @@ import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton"
 import {
   AdminPageHeading,
   KbdHint,
+  ScreeningFlagBadge,
   StatusPill,
   adminLabelClass,
   adminPanelClass,
@@ -35,6 +36,7 @@ export function AdminApplicationsListNocturne({
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [flagFilter, setFlagFilter] = useState<"all" | "flagged" | "clear">("all");
   const [newestFirst, setNewestFirst] = useState(true);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -56,13 +58,14 @@ export function AdminApplicationsListNocturne({
     let list = applications.filter(
       (a) =>
         (statusFilter === "all" || a.status === statusFilter) &&
+        (flagFilter === "all" || (flagFilter === "flagged") === a.knockoutFlagged) &&
         (q === "" || a.candidateName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)),
     );
     list = [...list].sort((a, b) =>
       newestFirst ? b.appliedAt.localeCompare(a.appliedAt) : a.appliedAt.localeCompare(b.appliedAt),
     );
     return list;
-  }, [applications, query, statusFilter, newestFirst]);
+  }, [applications, query, statusFilter, flagFilter, newestFirst]);
 
   return (
     <div>
@@ -97,7 +100,7 @@ export function AdminApplicationsListNocturne({
             <KbdHint>/</KbdHint>
           </span>
         </div>
-        <div className="flex gap-3 sm:ml-auto">
+        <div className="grid grid-cols-2 gap-3 sm:ml-auto sm:flex">
           <div className="relative min-w-0 flex-1 sm:flex-none">
             <select
               value={statusFilter}
@@ -117,10 +120,29 @@ export function AdminApplicationsListNocturne({
               aria-hidden
             />
           </div>
+          <div className="relative min-w-0 flex-1 sm:flex-none">
+            <select
+              value={flagFilter}
+              onChange={(e) => setFlagFilter(e.target.value as typeof flagFilter)}
+              aria-label="Filter by screening flag"
+              className={cn(controlClass, "w-full appearance-none pr-9 pl-3 font-semibold")}
+            >
+              <option value="all">All screening</option>
+              <option value="flagged">Flagged</option>
+              <option value="clear">Not flagged</option>
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-nocturne-ink-faint"
+              aria-hidden
+            />
+          </div>
           <button
             type="button"
             onClick={() => setNewestFirst((v) => !v)}
-            className={cn(controlClass, "flex shrink-0 items-center gap-1.5 px-3.5 font-semibold hover:bg-nocturne-raised")}
+            className={cn(
+              controlClass,
+              "col-span-2 flex shrink-0 items-center justify-center gap-1.5 px-3.5 font-semibold hover:bg-nocturne-raised sm:justify-start",
+            )}
           >
             <ArrowUpDown className="size-3.5 text-nocturne-ink-faint" aria-hidden />
             {newestFirst ? "Newest first" : "Oldest first"}
@@ -175,7 +197,7 @@ export function AdminApplicationsListNocturne({
                 </div>
 
                 {/* Mobile: experience + applied date share one line under the name. */}
-                <div className="col-span-2 row-start-2 flex flex-wrap gap-x-4 text-[0.8125rem] text-nocturne-ink-muted xl:contents">
+                <div className="col-span-2 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.8125rem] text-nocturne-ink-muted xl:contents">
                   <span>
                     {app.experienceYears != null ? (
                       <>
@@ -189,12 +211,14 @@ export function AdminApplicationsListNocturne({
                     <span className="xl:hidden">Applied </span>
                     <span className="nocturne-mono font-medium text-nocturne-ink">{formatDate(app.appliedAt)}</span>
                   </span>
+                  {app.knockoutFlagged && <ScreeningFlagBadge className="xl:hidden" />}
                 </div>
 
-                <div className="col-start-2 row-start-1 justify-self-end xl:col-start-auto xl:row-start-auto xl:justify-self-start">
+                <div className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-1.5 justify-self-end xl:col-start-auto xl:row-start-auto xl:justify-start xl:justify-self-start">
                   <StatusPill kind="application" status={app.status}>
                     {applicationStatusLabel(app.status)}
                   </StatusPill>
+                  {app.knockoutFlagged && <ScreeningFlagBadge className="hidden xl:inline-flex" />}
                 </div>
 
                 <div className="col-span-2 flex justify-end border-t border-nocturne-border pt-3 xl:col-span-1 xl:block xl:w-36 xl:border-0 xl:pt-0 xl:text-right">

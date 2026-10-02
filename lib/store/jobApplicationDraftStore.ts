@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { JobApplicationFormInput } from "@/lib/schemas/application.schema";
+import type { JobApplicationWithKnockoutsInput } from "@/lib/schemas/application.schema";
 
 /**
  * In-progress (pre-submission) job application field values, keyed by job
@@ -10,7 +10,7 @@ import type { JobApplicationFormInput } from "@/lib/schemas/application.schema";
  * design-mode change within the same session, not a page reload.
  */
 interface DraftEntry {
-  values: Partial<JobApplicationFormInput>;
+  values: Partial<JobApplicationWithKnockoutsInput>;
   resumeFile: File | null;
   otherFile: File | null;
 }
@@ -19,7 +19,7 @@ const EMPTY_ENTRY: DraftEntry = { values: {}, resumeFile: null, otherFile: null 
 
 interface JobApplicationDraftState {
   drafts: Record<string, DraftEntry>;
-  updateValues: (jobId: string, values: Partial<JobApplicationFormInput>) => void;
+  updateValues: (jobId: string, values: Partial<JobApplicationWithKnockoutsInput>) => void;
   setResumeFile: (jobId: string, file: File | null) => void;
   setOtherFile: (jobId: string, file: File | null) => void;
   clearDraft: (jobId: string) => void;

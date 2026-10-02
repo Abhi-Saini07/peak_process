@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { JobFormData } from "@/lib/schemas/job.schema";
 import type { JobStatus } from "@/lib/recruitment/constants";
+import { parseStoredKnockouts, toPublicKnockouts, type KnockoutQuestion } from "@/lib/recruitment/knockouts";
 import type { JobDetail, JobSummary, PublicJobDetail, PublicJobSummary } from "@/types/recruitment";
 
 const JOB_WITH_COUNT = {
@@ -66,6 +67,7 @@ function mapDetail(job: JobWithCount): JobDetail {
     publishedAt: toISOOrNull(job.publishedAt),
     closedAt: toISOOrNull(job.closedAt),
     updatedAt: toISO(job.updatedAt),
+    knockouts: parseStoredKnockouts(job.knockouts),
   };
 }
 
@@ -95,6 +97,7 @@ function mapPublicDetail(job: JobWithCount): PublicJobDetail {
     preferredSkills: toStringArray(job.preferredSkills),
     education: job.education,
     benefits: job.benefits,
+    knockouts: toPublicKnockouts(parseStoredKnockouts(job.knockouts)),
   };
 }
 
@@ -138,6 +141,7 @@ export async function createJob(data: JobFormData, createdByAdminId: string): Pr
       education: data.education || null,
       benefits: data.benefits || null,
       deadline: data.deadline ? new Date(data.deadline) : null,
+      knockouts: data.knockouts,
       status: data.status,
       createdBy: createdByAdminId,
       publishedAt: data.status === "published" ? new Date() : null,
@@ -186,6 +190,7 @@ export async function updateJob(id: string, data: JobFormData): Promise<void> {
       education: data.education || null,
       benefits: data.benefits || null,
       deadline: data.deadline ? new Date(data.deadline) : null,
+      knockouts: data.knockouts,
       status: data.status,
       publishedAt,
       closedAt,
@@ -237,4 +242,11 @@ export async function isJobOpenForApplications(id: string): Promise<boolean> {
 export async function getJobTitle(id: string): Promise<string | null> {
   const job = await prisma.job.findUnique({ where: { id }, select: { title: true } });
   return job?.title ?? null;
+}
+
+/** The screening questions (with qualifying answers) of a job that is open for
+ *  applications, or null when it isn't open. For the apply route only. */
+export async function getOpenJobKnockouts(id: string): Promise<KnockoutQuestion[] | null> {
+  const job = await prisma.job.findFirst({ where: { id, ...availabilityWhere() }, select: { knockouts: true } });
+  return job ? parseStoredKnockouts(job.knockouts) : null;
 }

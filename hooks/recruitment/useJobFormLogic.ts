@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { jobFormDefaults, jobSchema, type JobFormInput } from "@/lib/schemas/job.schema";
+import { KNOCKOUT_MAX, type KnockoutQuestion } from "@/lib/recruitment/knockouts";
 import type { JobDetail } from "@/types/recruitment";
 
 type SkillField = "requiredSkills" | "preferredSkills";
@@ -37,6 +38,7 @@ function toFormData(job?: JobDetail): JobFormInput {
     benefits: job.benefits ?? "",
     deadline: job.deadline ?? "",
     status: job.status,
+    knockouts: job.knockouts,
   };
 }
 
@@ -56,6 +58,24 @@ export function useJobFormLogic({ mode, jobId, initialJob }: UseJobFormLogicOpti
 
   const requiredSkills = watch("requiredSkills") ?? [];
   const preferredSkills = watch("preferredSkills") ?? [];
+  const knockouts = watch("knockouts") ?? [];
+
+  function setKnockouts(next: KnockoutQuestion[]) {
+    setValue("knockouts", next, { shouldValidate: true, shouldDirty: true });
+  }
+
+  function addKnockout() {
+    if (knockouts.length >= KNOCKOUT_MAX) return;
+    setKnockouts([...knockouts, { id: crypto.randomUUID(), label: "", qualifyingAnswer: true }]);
+  }
+
+  function updateKnockout(index: number, patch: Partial<Omit<KnockoutQuestion, "id">>) {
+    setKnockouts(knockouts.map((q, i) => (i === index ? { ...q, ...patch } : q)));
+  }
+
+  function removeKnockout(index: number) {
+    setKnockouts(knockouts.filter((_, i) => i !== index));
+  }
 
   function addSkill(field: SkillField, skill: string) {
     const trimmed = skill.trim();
@@ -106,5 +126,10 @@ export function useJobFormLogic({ mode, jobId, initialJob }: UseJobFormLogicOpti
     preferredSkills,
     addSkill,
     removeSkill,
+    knockouts,
+    canAddKnockout: knockouts.length < KNOCKOUT_MAX,
+    addKnockout,
+    updateKnockout,
+    removeKnockout,
   };
 }

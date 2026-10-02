@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Briefcase, Clock, MapPin, X } from "lucide-react";
+import { ArrowRight, Briefcase, Clock, MapPin, Plus, X } from "lucide-react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { useJobFormLogic } from "@/hooks/recruitment/useJobFormLogic";
 import {
@@ -24,6 +24,7 @@ import {
   adminEyebrowClass,
   adminPanelClass,
 } from "@/components/nocturne/recruitment/AdminShellNocturne";
+import { KNOCKOUT_LABEL_MAX, KNOCKOUT_MAX, type KnockoutQuestion } from "@/lib/recruitment/knockouts";
 import type { JobDetail } from "@/types/recruitment";
 
 /* ------------------------------------------------------------------ */
@@ -164,6 +165,114 @@ function SkillChipInput({ label, skills, onAdd, onRemove }: SkillChipInputProps)
         placeholder="Type a skill and press Enter"
         className={cn(nocturneFieldInputVariants({ hasError: false }), nocturneFieldHeightClass)}
       />
+    </div>
+  );
+}
+
+/** Up to two Yes/No screening questions. A wrong answer only flags the
+ *  application for HR; it never rejects anyone. */
+function KnockoutEditor({
+  questions,
+  canAdd,
+  onAdd,
+  onUpdate,
+  onRemove,
+  labelError,
+  listError,
+}: {
+  questions: KnockoutQuestion[];
+  canAdd: boolean;
+  onAdd: () => void;
+  onUpdate: (index: number, patch: Partial<Omit<KnockoutQuestion, "id">>) => void;
+  onRemove: (index: number) => void;
+  labelError: (index: number) => string | undefined;
+  listError?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[0.8125rem] leading-snug text-nocturne-ink-muted">
+        Optional. Candidates must answer Yes or No. A non-qualifying answer adds a{" "}
+        <span className="font-semibold text-nocturne-ink">Screening flag</span> for HR; it never rejects anyone
+        automatically.
+      </p>
+      {questions.map((q, index) => {
+        const error = labelError(index);
+        const inputId = `knockout-${q.id}`;
+        return (
+          <div
+            key={q.id}
+            className="flex flex-col gap-3 rounded-nocturne-control border border-nocturne-border bg-nocturne-surface p-3.5 sm:p-4"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor={inputId} className="text-[0.8125rem] font-semibold text-nocturne-ink">
+                Question {index + 1}
+              </label>
+              <button
+                type="button"
+                onClick={() => onRemove(index)}
+                className="inline-flex items-center gap-1 rounded-sm text-[0.8125rem] font-semibold text-nocturne-ink-muted hover:text-nocturne-error focus-visible:outline-2 focus-visible:outline-nocturne-accent"
+              >
+                <X className="size-3.5" aria-hidden /> Remove
+              </button>
+            </div>
+            <input
+              id={inputId}
+              value={q.label}
+              maxLength={KNOCKOUT_LABEL_MAX}
+              onChange={(e) => onUpdate(index, { label: e.target.value })}
+              placeholder="e.g. Are you legally allowed to work in India?"
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? `${inputId}-error` : undefined}
+              className={cn(nocturneFieldInputVariants({ hasError: Boolean(error) }), nocturneFieldHeightClass)}
+            />
+            {error && (
+              <p id={`${inputId}-error`} className="-mt-1.5 text-[0.8125rem] text-nocturne-error" role="alert">
+                {error}
+              </p>
+            )}
+            <fieldset className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <legend className="sr-only">Qualifying answer for question {index + 1}</legend>
+              <span className="text-[0.8125rem] text-nocturne-ink-muted" aria-hidden>
+                Qualifying answer
+              </span>
+              <div className="flex gap-1 rounded-nocturne-control border border-nocturne-border-strong bg-nocturne-bg p-1">
+                {([true, false] as const).map((value) => (
+                  <label key={String(value)} className="relative cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`${inputId}-answer`}
+                      checked={q.qualifyingAnswer === value}
+                      onChange={() => onUpdate(index, { qualifyingAnswer: value })}
+                      className="peer sr-only"
+                    />
+                    <span className="block rounded-[7px] px-4 py-1 text-[0.8125rem] font-semibold text-nocturne-ink-muted transition-colors peer-checked:bg-nocturne-surface-2 peer-checked:text-nocturne-ink peer-checked:shadow-nocturne-rest peer-hover:text-nocturne-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-nocturne-accent motion-reduce:transition-none">
+                      {value ? "Yes" : "No"}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        );
+      })}
+      {listError && (
+        <p className="text-[0.8125rem] text-nocturne-error" role="alert">
+          {listError}
+        </p>
+      )}
+      {canAdd && (
+        <button
+          type="button"
+          onClick={onAdd}
+          className={cn(nocturneButtonVariants({ variant: "secondary", size: "sm" }), "self-start")}
+        >
+          <Plus className="size-4" aria-hidden />
+          Add screening question
+          <span className="nocturne-mono text-nocturne-ink-muted">
+            {questions.length}/{KNOCKOUT_MAX}
+          </span>
+        </button>
+      )}
     </div>
   );
 }
@@ -314,8 +423,22 @@ interface JobFormNocturneProps extends AdminJobFormNocturneProps {
 
 /** The form itself, with optional heading/aside slots for the job detail page. */
 export function JobFormNocturne({ mode, jobId, initialJob, eyebrow, title, lead, aside }: JobFormNocturneProps) {
-  const { register, errors, isSubmitting, submitError, onContinue, requiredSkills, preferredSkills, addSkill, removeSkill } =
-    useJobFormLogic({ mode, jobId, initialJob });
+  const {
+    register,
+    errors,
+    isSubmitting,
+    submitError,
+    onContinue,
+    requiredSkills,
+    preferredSkills,
+    addSkill,
+    removeSkill,
+    knockouts,
+    canAddKnockout,
+    addKnockout,
+    updateKnockout,
+    removeKnockout,
+  } = useJobFormLogic({ mode, jobId, initialJob });
   const formRef = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState<PreviewValues>(() => previewFromJob(initialJob));
 
@@ -487,6 +610,17 @@ export function JobFormNocturne({ mode, jobId, initialJob, eyebrow, title, lead,
             placeholder="e.g. Bachelor's in Computer Science"
             error={errors.education?.message}
             {...register("education")}
+          />
+
+          <SectionHeading n={5}>Screening questions</SectionHeading>
+          <KnockoutEditor
+            questions={knockouts}
+            canAdd={canAddKnockout}
+            onAdd={addKnockout}
+            onUpdate={updateKnockout}
+            onRemove={removeKnockout}
+            labelError={(index) => errors.knockouts?.[index]?.label?.message}
+            listError={errors.knockouts?.message ?? errors.knockouts?.root?.message}
           />
         </div>
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { knockoutsSchema } from "@/lib/recruitment/knockouts";
 
 export const employmentTypeSchema = z.enum(["full_time", "part_time", "contract", "internship"]);
 export const workModeSchema = z.enum(["onsite", "hybrid", "remote"]);
@@ -40,6 +41,7 @@ export const jobSchema = z
     benefits: z.string().max(4000).optional().or(z.literal("")),
     deadline: z.string().optional().or(z.literal("")), // yyyy-mm-dd from <input type="date">
     status: jobStatusSchema.default("draft"),
+    knockouts: knockoutsSchema.default([]),
   })
   .refine(
     (data) =>
@@ -78,4 +80,5 @@ export const jobFormDefaults: JobFormData = {
   benefits: "",
   deadline: "",
   status: "draft",
+  knockouts: [],
 };

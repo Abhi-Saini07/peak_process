@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { phoneSchema } from "./shared";
+import { knockoutAnswersSchemaFor, type PublicKnockoutQuestion } from "@/lib/recruitment/knockouts";
 
-export const educationLevelSchema = z.enum(["high_school", "diploma", "bachelors", "masters", "doctorate", "other"]);
+export const educationLevelSchema = z.enum(["high_school", "diploma", "bachelors", "masters", "doctorate", "other"], {
+  error: "Choose your highest education",
+});
 
 /**
  * The public job-application form. Deliberately does NOT collect Aadhaar,
@@ -41,4 +44,19 @@ export const jobApplicationDefaults = {
   coverLetter: "",
   linkedinUrl: "",
   portfolioUrl: "",
+};
+
+/** The apply form for one job: the base fields plus a required Yes/No answer
+ *  for each of the job's screening questions. Used by the form (zodResolver)
+ *  and by POST /api/jobs/[id]/apply, built from the job's current questions. */
+export function jobApplicationSchemaFor(knockouts: readonly PublicKnockoutQuestion[]) {
+  return jobApplicationSchema.extend({ knockoutAnswers: knockoutAnswersSchemaFor(knockouts) });
+}
+
+export type KnockoutAnswerValue = "yes" | "no";
+export type JobApplicationWithKnockoutsInput = JobApplicationFormInput & {
+  knockoutAnswers: Record<string, KnockoutAnswerValue>;
+};
+export type JobApplicationWithKnockoutsData = JobApplicationFormData & {
+  knockoutAnswers: Record<string, KnockoutAnswerValue>;
 };

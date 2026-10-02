@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { jobApplicationDefaults, jobApplicationSchema, type JobApplicationFormInput } from "@/lib/schemas/application.schema";
+import {
+  jobApplicationDefaults,
+  jobApplicationSchemaFor,
+  type JobApplicationWithKnockoutsData,
+  type JobApplicationWithKnockoutsInput,
+} from "@/lib/schemas/application.schema";
+import type { PublicKnockoutQuestion } from "@/lib/recruitment/knockouts";
 import { getDraft, useJobApplicationDraftStore } from "@/lib/store/jobApplicationDraftStore";
 
-export function useJobApplicationFormLogic(jobId: string) {
+export function useJobApplicationFormLogic(jobId: string, knockouts: readonly PublicKnockoutQuestion[] = []) {
   const router = useRouter();
   const draft = getDraft(jobId);
   const updateValues = useJobApplicationDraftStore((s) => s.updateValues);
@@ -19,15 +25,16 @@ export function useJobApplicationFormLogic(jobId: string) {
   const [otherFile, setOtherFileState] = useState<File | null>(draft.otherFile);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const schema = useMemo(() => jobApplicationSchemaFor(knockouts), [knockouts]);
 
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<JobApplicationFormInput>({
-    resolver: zodResolver(jobApplicationSchema),
-    defaultValues: { ...jobApplicationDefaults, ...draft.values },
+  } = useForm<JobApplicationWithKnockoutsInput, unknown, JobApplicationWithKnockoutsData>({
+    resolver: zodResolver(schema),
+    defaultValues: { ...jobApplicationDefaults, knockoutAnswers: {}, ...draft.values },
   });
 
   // Mirrors onboarding's useOnboardingForm watch()-to-store bridge: pushes
@@ -35,7 +42,7 @@ export function useJobApplicationFormLogic(jobId: string) {
   // (which unmounts this hook and mounts a fresh one) doesn't lose them.
   useEffect(() => {
     const subscription = watch((values) => {
-      updateValues(jobId, values as Partial<JobApplicationFormInput>);
+      updateValues(jobId, values as Partial<JobApplicationWithKnockoutsInput>);
     });
     return () => subscription.unsubscribe();
   }, [watch, jobId, updateValues]);
@@ -59,9 +66,11 @@ export function useJobApplicationFormLogic(jobId: string) {
     setResumeError(null);
 
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
+    const { knockoutAnswers, ...fields } = data;
+    Object.entries(fields).forEach(([key, value]) => {
       if (value !== undefined && value !== null) formData.set(key, String(value));
     });
+    formData.set("knockoutAnswers", JSON.stringify(knockoutAnswers ?? {}));
     formData.set("resume", resumeFile);
     if (otherFile) formData.set("other", otherFile);
 

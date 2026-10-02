@@ -9,6 +9,12 @@ import type { ApplicationStatus as AppStatus } from "@/lib/recruitment/constants
 import { canTransition } from "@/lib/recruitment/stages";
 import type { RejectInput } from "@/lib/recruitment/rejection";
 import type { NoteInput } from "@/lib/recruitment/notes";
+import {
+  computeKnockoutFlag,
+  parseStoredKnockoutAnswers,
+  snapshotKnockoutAnswers,
+  type KnockoutQuestion,
+} from "@/lib/recruitment/knockouts";
 import type {
   ApplicationDetail,
   ApplicationDocumentMeta,
@@ -51,6 +57,7 @@ function mapSummary(app: ApplicationWithRelations): ApplicationSummary {
     appliedAt: toISO(app.appliedAt),
     stageEnteredAt: toISO(app.stageEnteredAt),
     rejectReason: app.rejectReason,
+    knockoutFlagged: app.knockoutFlagged,
   };
 }
 
@@ -100,6 +107,7 @@ function mapDetail(app: ApplicationWithRelations, notes: NoteWithAuthor[]): Appl
     documents: app.documents.map(mapDocument),
     history: app.statusHistory.map(mapHistory),
     notes: notes.map(mapNote),
+    knockoutAnswers: parseStoredKnockoutAnswers(app.knockoutAnswers),
   };
 }
 
@@ -155,6 +163,9 @@ interface CreateApplicationInput {
   data: JobApplicationFormData;
   resumeFile: File;
   otherFile?: File | null;
+  /** The job's questions as loaded on the server, and the candidate's answers. */
+  knockoutQuestions: KnockoutQuestion[];
+  knockoutAnswers: Record<string, boolean>;
 }
 
 /** Finds-or-creates the candidate by email (so the same person can apply to
@@ -197,6 +208,12 @@ export async function createApplication(
       status: "applied",
       stageEnteredAt: new Date(),
       coverLetter: input.data.coverLetter || null,
+      // Recomputed here from the stored questions; the client's view is never trusted.
+      knockoutAnswers:
+        input.knockoutQuestions.length > 0
+          ? snapshotKnockoutAnswers(input.knockoutQuestions, input.knockoutAnswers)
+          : Prisma.DbNull,
+      knockoutFlagged: computeKnockoutFlag(input.knockoutQuestions, input.knockoutAnswers),
     },
   });
 

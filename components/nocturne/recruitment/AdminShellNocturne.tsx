@@ -4,7 +4,7 @@ import { useAdminSignOut } from "@/hooks/recruitment/useAdminSignOut";
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, LogOut } from "lucide-react";
+import { ChevronRight, Flag, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 /* ------------------------------------------------------------------ */
@@ -98,6 +98,22 @@ export function StatusPill({
     >
       <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden />
       {children}
+    </span>
+  );
+}
+
+/** Amber "Screening flag" chip: a screening answer was missing or didn't qualify. */
+export function ScreeningFlagBadge({ className, compact }: { className?: string; compact?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-6.5 items-center gap-1.5 rounded-nocturne-pill bg-nocturne-gold-tint px-2.5 text-xs font-semibold whitespace-nowrap text-nocturne-gold",
+        className,
+      )}
+      title="A screening answer didn't match the qualifying answer"
+    >
+      <Flag className="size-3 shrink-0" aria-hidden />
+      {compact ? <span className="sr-only">Screening flag</span> : "Screening flag"}
     </span>
   );
 }

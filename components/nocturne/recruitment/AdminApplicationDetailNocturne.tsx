@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, FileText, Flag } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { applicationStatusLabel, educationLabel } from "@/lib/recruitment/constants";
 import { availableNextStatuses, useApplicationStatusActions } from "@/hooks/recruitment/useApplicationStatusActions";
@@ -9,11 +9,13 @@ import { useRejectReasonPicker } from "@/hooks/recruitment/useRejectReasonPicker
 import { rejectReasonLabel } from "@/lib/recruitment/rejection";
 import { useApplicationActivity } from "@/hooks/recruitment/useApplicationActivity";
 import { ApplicationActivityNocturne } from "@/components/nocturne/recruitment/ApplicationActivityNocturne";
+import { isQualifyingAnswer } from "@/lib/recruitment/knockouts";
 import { RejectReasonDialog } from "@/components/nocturne/recruitment/RejectReasonDialog";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import { formatBytes } from "@/lib/utils/formatBytes";
 import {
   AdminPageHeading,
+  ScreeningFlagBadge,
   StatusPill,
   adminCardTitleClass,
   adminLabelClass,
@@ -66,6 +68,7 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
       <AdminPageHeading
         eyebrow="Recruitment · Application"
         title={application.candidateName}
+        action={application.knockoutFlagged ? <ScreeningFlagBadge /> : undefined}
         lead={
           <>
             {application.jobTitle} · Reference{" "}
@@ -90,6 +93,48 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
               <InfoRow label="Applied" value={formatDateTime(application.appliedAt)} mono />
             </dl>
           </section>
+
+          {application.knockoutAnswers.length > 0 && (
+            <section className={cn(adminPanelClass, "px-4 py-5.5 sm:px-6.5")}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <PanelTitle>Screening answers</PanelTitle>
+                {application.knockoutFlagged && <ScreeningFlagBadge />}
+              </div>
+              <ul className="mt-4 flex flex-col gap-2.5">
+                {application.knockoutAnswers.map((item) => {
+                  const ok = isQualifyingAnswer(item);
+                  const yesNo = (v: boolean) => (v ? "Yes" : "No");
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex items-start gap-3 rounded-nocturne-control border border-nocturne-border px-3.5 py-3"
+                    >
+                      <span
+                        className={cn(
+                          "mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full",
+                          ok ? "bg-nocturne-success-tint text-nocturne-success" : "bg-nocturne-gold-tint text-nocturne-gold",
+                        )}
+                        aria-hidden
+                      >
+                        {ok ? <Check className="size-3.5" /> : <Flag className="size-3" />}
+                      </span>
+                      <div className="min-w-0 flex-1 text-sm">
+                        <p className="font-semibold break-words text-nocturne-ink">{item.label}</p>
+                        <p className="mt-0.5 text-nocturne-ink-muted">
+                          Answered{" "}
+                          <span className="font-semibold text-nocturne-ink">
+                            {item.answer == null ? "nothing" : yesNo(item.answer)}
+                          </span>
+                          {!ok && <> · qualifying answer is {yesNo(item.qualifyingAnswer)}</>}
+                          <span className="sr-only">{ok ? " (qualifies)" : " (flagged)"}</span>
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
           <section className={cn(adminPanelClass, "overflow-hidden")}>
             <div className="border-b border-nocturne-border px-4 py-4.5 sm:px-6.5">

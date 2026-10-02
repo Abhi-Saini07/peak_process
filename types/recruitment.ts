@@ -1,4 +1,5 @@
 import type { RejectReason } from "@/lib/recruitment/rejection";
+import type { KnockoutAnswer, KnockoutQuestion, PublicKnockoutQuestion } from "@/lib/recruitment/knockouts";
 import type {
   ApplicationStatus,
   EmploymentType,
@@ -35,6 +36,7 @@ export interface JobDetail extends JobSummary {
   publishedAt: string | null;
   closedAt: string | null;
   updatedAt: string;
+  knockouts: KnockoutQuestion[];
 }
 
 /** What the public site is allowed to see — no status, no applicant counts. */
@@ -60,6 +62,8 @@ export interface PublicJobDetail extends PublicJobSummary {
   preferredSkills: string[];
   education: string | null;
   benefits: string | null;
+  /** Screening questions, without the qualifying answer. */
+  knockouts: PublicKnockoutQuestion[];
 }
 
 export interface ApplicationSummary {
@@ -75,6 +79,8 @@ export interface ApplicationSummary {
   /** When the application entered its current status (ISO). */
   stageEnteredAt: string;
   rejectReason: RejectReason | null;
+  /** A screening answer was missing or didn't qualify. Never auto-rejects. */
+  knockoutFlagged: boolean;
 }
 
 export interface ApplicationStatusHistoryEntry {
@@ -116,4 +122,5 @@ export interface ApplicationDetail extends ApplicationSummary {
   documents: ApplicationDocumentMeta[];
   history: ApplicationStatusHistoryEntry[];
   notes: ApplicationNoteEntry[];
+  knockoutAnswers: KnockoutAnswer[];
 }

@@ -161,7 +161,7 @@ export function JobApplicationFormNocturne({ job }: { job: PublicJobDetail }) {
     otherFile,
     setOtherFile,
     onContinue,
-  } = useJobApplicationFormLogic(job.id);
+  } = useJobApplicationFormLogic(job.id, job.knockouts);
 
   const salary = formatSalary(job.salaryMin, job.salaryMax);
   const currentSection = useSectionInView();
@@ -213,6 +213,47 @@ export function JobApplicationFormNocturne({ job }: { job: PublicJobDetail }) {
                     />
                   </div>
                 </div>
+                {job.knockouts.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-4 rounded-nocturne-control border border-nocturne-border bg-nocturne-surface p-4 sm:p-5">
+                    {job.knockouts.map((q) => {
+                      const error = errors.knockoutAnswers?.[q.id]?.message;
+                      const groupId = `knockout-${q.id}`;
+                      return (
+                        <fieldset key={q.id} aria-describedby={error ? `${groupId}-error` : undefined}>
+                          <legend className="text-sm leading-snug font-semibold text-nocturne-ink">
+                            {q.label} <span className="text-nocturne-accent-text">*</span>
+                          </legend>
+                          <div className="mt-2.5 flex gap-2">
+                            {(["yes", "no"] as const).map((value) => (
+                              <label key={value} className="relative cursor-pointer">
+                                <input
+                                  type="radio"
+                                  value={value}
+                                  className="peer sr-only"
+                                  aria-invalid={Boolean(error) || undefined}
+                                  {...register(`knockoutAnswers.${q.id}`)}
+                                />
+                                <span
+                                  className={cn(
+                                    "inline-flex h-10 min-w-20 items-center justify-center rounded-nocturne-control border bg-nocturne-card px-5 text-sm font-semibold text-nocturne-ink-muted transition-[color,border-color,background-color,box-shadow] peer-checked:border-nocturne-accent peer-checked:bg-nocturne-accent-tint peer-checked:text-nocturne-ink peer-hover:text-nocturne-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-nocturne-accent motion-reduce:transition-none in-data-[theme=dark]:bg-nocturne-bg",
+                                    error ? "border-nocturne-error" : "border-nocturne-border-strong",
+                                  )}
+                                >
+                                  {value === "yes" ? "Yes" : "No"}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          {error && (
+                            <p id={`${groupId}-error`} className="mt-1.5 text-[0.8125rem] text-nocturne-error" role="alert">
+                              {error}
+                            </p>
+                          )}
+                        </fieldset>
+                      );
+                    })}
+                  </div>
+                )}
               </FormSection>
 
               <FormSection step={2} title="Resume & links" description="PDF or Word for your resume. Everything else is optional.">
