@@ -129,14 +129,15 @@ export function JobMetaRow({
 
 function FactRow({ icon: Icon, label, value }: { icon: Icon; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-nocturne-control bg-nocturne-raised">
-        <Icon className="size-4 text-nocturne-ink-muted" aria-hidden />
-      </span>
-      <div className="min-w-0">
-        <dt className="text-xs font-medium text-nocturne-ink-muted">{label}</dt>
-        <dd className="text-sm font-bold text-nocturne-ink">{value}</dd>
-      </div>
+    // <dl> only allows <div> groups of <dt>/<dd>, so the icon sits inside the <dt>.
+    <div className="relative min-h-8 min-w-0 pl-11">
+      <dt className="text-xs font-medium text-nocturne-ink-muted">
+        <span className="absolute top-0 left-0 flex size-8 items-center justify-center rounded-nocturne-control bg-nocturne-raised">
+          <Icon className="size-4 text-nocturne-ink-muted" aria-hidden />
+        </span>
+        {label}
+      </dt>
+      <dd className="text-sm font-bold text-nocturne-ink">{value}</dd>
     </div>
   );
 }
