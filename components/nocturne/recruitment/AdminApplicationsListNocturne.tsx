@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils/cn";
 import { applicationStatusLabel, APPLICATION_STATUS_OPTIONS } from "@/lib/recruitment/constants";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import {
-  AdminPageHeading,
   KbdHint,
   ScreeningFlagBadge,
   StatusPill,
@@ -27,15 +26,17 @@ const controlClass =
 
 const GRID = "xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_auto]";
 
+/** List view of one job's applications (toolbar + table). The page heading
+ *  and the List | Board switch live in AdminApplicationsViewNocturne. */
 export function AdminApplicationsListNocturne({
-  jobTitle,
   applications,
+  initialStatusFilter = "all",
 }: {
-  jobTitle: string;
   applications: ApplicationSummary[];
+  initialStatusFilter?: string;
 }) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter);
   const [flagFilter, setFlagFilter] = useState<"all" | "flagged" | "clear">("all");
   const [newestFirst, setNewestFirst] = useState(true);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -69,18 +70,7 @@ export function AdminApplicationsListNocturne({
 
   return (
     <div>
-      <AdminPageHeading
-        eyebrow="Recruitment · Applications"
-        title={jobTitle}
-        lead={
-          <>
-            <span className="nocturne-mono font-semibold text-nocturne-ink">{applications.length}</span> application
-            {applications.length === 1 ? "" : "s"}
-          </>
-        }
-      />
-
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative w-full sm:w-72">
           <Search
             className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-nocturne-ink-faint"
