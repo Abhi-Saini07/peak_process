@@ -7,6 +7,8 @@ import { applicationStatusLabel, educationLabel } from "@/lib/recruitment/consta
 import { availableNextStatuses, useApplicationStatusActions } from "@/hooks/recruitment/useApplicationStatusActions";
 import { useRejectReasonPicker } from "@/hooks/recruitment/useRejectReasonPicker";
 import { rejectReasonLabel } from "@/lib/recruitment/rejection";
+import { useApplicationActivity } from "@/hooks/recruitment/useApplicationActivity";
+import { ApplicationActivityNocturne } from "@/components/nocturne/recruitment/ApplicationActivityNocturne";
 import { RejectReasonDialog } from "@/components/nocturne/recruitment/RejectReasonDialog";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import { formatBytes } from "@/lib/utils/formatBytes";
@@ -48,6 +50,7 @@ function PanelTitle({ children }: { children: string }) {
 export function AdminApplicationDetailNocturne({ application }: { application: ApplicationDetail }) {
   const { setStatus, isUpdating, error, clearError } = useApplicationStatusActions(application.id);
   const nextStatuses = availableNextStatuses(application.status);
+  const activity = useApplicationActivity(application);
   const rejectPicker = useRejectReasonPicker((input) => setStatus("rejected", input));
 
   return (
@@ -156,6 +159,8 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
               </div>
             </section>
           )}
+
+          <ApplicationActivityNocturne activity={activity} />
         </div>
 
         <aside className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-6">
@@ -209,40 +214,6 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
             )}
           </section>
 
-          <section className={cn(adminPanelClass, "px-5 py-5.5 sm:px-6")}>
-            <PanelTitle>Status history</PanelTitle>
-            <ol className="mt-4 flex flex-col">
-              {application.history.map((entry, index) => (
-                <li key={entry.id} className="relative flex flex-col gap-0.5 pb-4 pl-6 text-sm last:pb-0">
-                  {/* Timeline rail + dot; the latest entry's dot is filled. */}
-                  {index < application.history.length - 1 && (
-                    <span className="absolute top-4 bottom-0 left-[0.3125rem] w-px bg-nocturne-border" aria-hidden />
-                  )}
-                  <span
-                    className={cn(
-                      "absolute top-1.5 left-0 size-2.75 rounded-full border-2",
-                      index === application.history.length - 1
-                        ? "border-nocturne-accent bg-nocturne-accent"
-                        : "border-nocturne-border-strong bg-nocturne-card",
-                    )}
-                    aria-hidden
-                  />
-                  <span className="text-nocturne-ink">
-                    {entry.oldStatus ? `${applicationStatusLabel(entry.oldStatus)} → ` : ""}
-                    <span className="font-bold">{applicationStatusLabel(entry.newStatus)}</span>
-                    {entry.changedByName && <span className="text-nocturne-ink-muted"> · by {entry.changedByName}</span>}
-                  </span>
-                  {entry.rejectReason && (
-                    <span className="text-nocturne-ink-muted">
-                      Reason: <span className="font-semibold text-nocturne-ink">{rejectReasonLabel(entry.rejectReason)}</span>
-                      {entry.rejectNote && <span className="block whitespace-pre-line">{entry.rejectNote}</span>}
-                    </span>
-                  )}
-                  <span className="nocturne-mono text-xs text-nocturne-ink-muted">{formatDateTime(entry.changedAt)}</span>
-                </li>
-              ))}
-            </ol>
-          </section>
         </aside>
       </div>
 

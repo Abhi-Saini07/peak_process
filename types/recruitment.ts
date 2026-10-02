@@ -87,6 +87,15 @@ export interface ApplicationStatusHistoryEntry {
   rejectNote: string | null;
 }
 
+export interface ApplicationNoteEntry {
+  id: string;
+  body: string;
+  /** 1–5, or null when the note has no rating. */
+  rating: number | null;
+  authorName: string | null;
+  createdAt: string;
+}
+
 export interface ApplicationDocumentMeta {
   id: string;
   documentType: "resume" | "other";
@@ -106,4 +115,5 @@ export interface ApplicationDetail extends ApplicationSummary {
   rejectNote: string | null;
   documents: ApplicationDocumentMeta[];
   history: ApplicationStatusHistoryEntry[];
+  notes: ApplicationNoteEntry[];
 }

@@ -8,9 +8,11 @@ import type { JobApplicationFormData } from "@/lib/schemas/application.schema";
 import type { ApplicationStatus as AppStatus } from "@/lib/recruitment/constants";
 import { canTransition } from "@/lib/recruitment/stages";
 import type { RejectInput } from "@/lib/recruitment/rejection";
+import type { NoteInput } from "@/lib/recruitment/notes";
 import type {
   ApplicationDetail,
   ApplicationDocumentMeta,
+  ApplicationNoteEntry,
   ApplicationStatusHistoryEntry,
   ApplicationSummary,
 } from "@/types/recruitment";
@@ -31,6 +33,9 @@ const APPLICATION_WITH_RELATIONS = {
     statusHistory: { include: { changedByAdmin: true }, orderBy: { changedAt: "asc" } },
   },
 } satisfies Prisma.JobApplicationDefaultArgs;
+
+const NOTE_WITH_AUTHOR = { include: { author: { select: { fullName: true } } } } satisfies Prisma.ApplicationNoteDefaultArgs;
+type NoteWithAuthor = Prisma.ApplicationNoteGetPayload<typeof NOTE_WITH_AUTHOR>;
 type ApplicationWithRelations = Prisma.JobApplicationGetPayload<typeof APPLICATION_WITH_RELATIONS>;
 
 function mapSummary(app: ApplicationWithRelations): ApplicationSummary {
@@ -71,7 +76,17 @@ function mapHistory(entry: ApplicationWithRelations["statusHistory"][number]): A
   };
 }
 
-function mapDetail(app: ApplicationWithRelations): ApplicationDetail {
+function mapNote(note: NoteWithAuthor): ApplicationNoteEntry {
+  return {
+    id: note.id,
+    body: note.body,
+    rating: note.rating,
+    authorName: note.author?.fullName ?? null,
+    createdAt: toISO(note.createdAt),
+  };
+}
+
+function mapDetail(app: ApplicationWithRelations, notes: NoteWithAuthor[]): ApplicationDetail {
   return {
     ...mapSummary(app),
     jobId: app.jobId,
@@ -84,6 +99,7 @@ function mapDetail(app: ApplicationWithRelations): ApplicationDetail {
     rejectNote: app.rejectNote,
     documents: app.documents.map(mapDocument),
     history: app.statusHistory.map(mapHistory),
+    notes: notes.map(mapNote),
   };
 }
 
@@ -97,8 +113,41 @@ export async function getApplicationsForJob(jobId: string): Promise<ApplicationS
 }
 
 export async function getApplicationById(id: string): Promise<ApplicationDetail | null> {
-  const app = await prisma.jobApplication.findUnique({ where: { id }, ...APPLICATION_WITH_RELATIONS });
-  return app ? mapDetail(app) : null;
+  const [app, notes] = await Promise.all([
+    prisma.jobApplication.findUnique({ where: { id }, ...APPLICATION_WITH_RELATIONS }),
+    prisma.applicationNote.findMany({ where: { applicationId: id }, ...NOTE_WITH_AUTHOR, orderBy: { createdAt: "desc" } }),
+  ]);
+  return app ? mapDetail(app, notes) : null;
+}
+
+/** Newest first. Null when the application doesn't exist. */
+export async function getApplicationNotes(applicationId: string): Promise<ApplicationNoteEntry[] | null> {
+  const exists = await prisma.jobApplication.findUnique({ where: { id: applicationId }, select: { id: true } });
+  if (!exists) return null;
+  const notes = await prisma.applicationNote.findMany({
+    where: { applicationId },
+    ...NOTE_WITH_AUTHOR,
+    orderBy: { createdAt: "desc" },
+  });
+  return notes.map(mapNote);
+}
+
+export async function addApplicationNote(
+  applicationId: string,
+  input: NoteInput,
+  authorAdminId: string,
+): Promise<ApplicationNoteEntry | null> {
+  try {
+    const note = await prisma.applicationNote.create({
+      data: { applicationId, authorAdminId, body: input.body, rating: input.rating },
+      ...NOTE_WITH_AUTHOR,
+    });
+    return mapNote(note);
+  } catch (error) {
+    // Foreign key: the application was deleted (or never existed).
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") return null;
+    throw error;
+  }
 }
 
 interface CreateApplicationInput {

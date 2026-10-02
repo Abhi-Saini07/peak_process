@@ -266,6 +266,7 @@ model AdminUser {
 
   jobsCreated   Job[]
   statusChanges ApplicationStatusHistory[]
+  notes         ApplicationNote[]
 
   @@map("admin_users")
 }
@@ -352,6 +353,7 @@ model JobApplication {
   candidate     Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   documents     ApplicationDocument[]
   statusHistory ApplicationStatusHistory[]
+  notes         ApplicationNote[]
 
   @@unique([jobId, candidateId], map: "uq_job_applications_job_candidate")
   @@index([jobId], map: "idx_job_applications_job")
@@ -397,4 +399,23 @@ model ApplicationStatusHistory {
 
   @@index([applicationId], map: "idx_application_status_history_application")
   @@map("application_status_history")
+}
+
+/// HR notes on an application, with an optional 1–5 rating. body is capped at
+/// 5000 characters by the API (lib/recruitment/notes.ts). A CHECK constraint
+/// `chk_application_notes_rating` (rating NULL or 1–5) is added as raw SQL in
+/// migration application_notes.
+model ApplicationNote {
+  id            String   @id @default(uuid()) @db.Char(36)
+  applicationId String   @map("application_id") @db.Char(36)
+  authorAdminId String?  @map("author_admin_id") @db.Char(36)
+  body          String   @db.Text
+  rating        Int?     @db.SmallInt
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  author      AdminUser?     @relation(fields: [authorAdminId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, createdAt], map: "idx_application_notes_application_created")
+  @@map("application_notes")
 }
