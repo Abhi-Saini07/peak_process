@@ -230,7 +230,6 @@ export function JobApplicationFormNocturne({ job }: { job: PublicJobDetail }) {
                                   type="radio"
                                   value={value}
                                   className="peer sr-only"
-                                  aria-invalid={Boolean(error) || undefined}
                                   {...register(`knockoutAnswers.${q.id}`)}
                                 />
                                 <span
