@@ -129,6 +129,7 @@ Resumes and documents go to an S3-compatible bucket, such as your existing MinIO
 | `MINIO_SECRET_KEY` | from step 5 | yes |
 | `MINIO_BUCKET` | from step 5 | yes |
 | `SESSION_COOKIE_NAME` | `ppp_session` | optional (default) |
+| `NEXT_PUBLIC_SITE_URL` | the live URL, e.g. `https://careers.yourcompany.com` (no trailing slash). Used for canonical links, the sitemap, robots.txt and job previews when shared. | yes (defaults to `http://localhost:3000`) |
 
 - Set them for **Production**. Also tick **Preview** if you want preview deployments (other branches) to work. Without these variables, preview sites show errors.
 - **Don't** set `NEXT_PUBLIC_PERSISTENCE_MODE` (that's only for offline demos).
