@@ -10,11 +10,16 @@ Run this in **Command Prompt**, in the project folder:
 
 ```
 cd /d E:\work\peak_process
+git pull origin main
+npm install
 npx prisma migrate deploy
 npx prisma db seed
 npm run dev
 ```
 
+- Run `npm install` after every `git pull`: new features can add packages
+  (the Kanban board needs `@dnd-kit/core`). Skipping it shows
+  "Module not found" errors.
 - **Only on a local or test database, never the live one.** Check `DATABASE_URL` in
   `.env` first: it should be your local PostgreSQL or a Neon *dev* branch.
 - The seed is safe to run again. It replaces only its own demo rows, and nothing
