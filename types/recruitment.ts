@@ -53,6 +53,8 @@ export interface PublicJobSummary {
 }
 
 export interface PublicJobDetail extends PublicJobSummary {
+  publishedAt: string | null; // ISO
+  deadline: string | null; // yyyy-mm-dd
   salaryMin: number | null; // only populated when the job's salaryPublic flag is set
   salaryMax: number | null;
   overview: string | null;

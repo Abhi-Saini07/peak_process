@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { JobFormData } from "@/lib/schemas/job.schema";
@@ -88,6 +89,8 @@ function mapPublicSummary(job: JobWithCount): PublicJobSummary {
 function mapPublicDetail(job: JobWithCount): PublicJobDetail {
   return {
     ...mapPublicSummary(job),
+    publishedAt: toISOOrNull(job.publishedAt),
+    deadline: toISODateOnly(job.deadline),
     salaryMin: job.salaryPublic ? job.salaryMin : null,
     salaryMax: job.salaryPublic ? job.salaryMax : null,
     overview: job.overview,
@@ -228,9 +231,20 @@ export async function getPublicJobs(): Promise<PublicJobSummary[]> {
   return jobs.map(mapPublicSummary);
 }
 
-export async function getPublicJobById(id: string): Promise<PublicJobDetail | null> {
+/** Published and not past its deadline, else null (so the page can notFound()).
+ *  Deduplicated per request: metadata, the page and its OG image share one query. */
+export const getPublicJobById = cache(async (id: string): Promise<PublicJobDetail | null> => {
   const job = await prisma.job.findFirst({ where: { id, ...availabilityWhere() }, ...JOB_WITH_COUNT });
   return job ? mapPublicDetail(job) : null;
+});
+
+/** Open jobs for the sitemap. */
+export async function getSitemapJobs(): Promise<{ id: string; updatedAt: Date }[]> {
+  return prisma.job.findMany({
+    where: availabilityWhere(),
+    select: { id: true, updatedAt: true },
+    orderBy: { publishedAt: "desc" },
+  });
 }
 
 /** Server-side re-check used by the apply API route — never trusts that the Apply button was merely shown. */

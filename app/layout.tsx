@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { plusJakartaSans, sora } from "./fonts";
 import { OnboardingHydrator } from "@/lib/store/OnboardingHydrator";
 import { themeInitScript } from "@/lib/design/themeScript";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
   title: "New Hire Onboarding | Peak Process Partners",
   description:
     "Complete your onboarding with Peak Process Partners — personal information, references, benefits, and required documents in one guided flow.",
