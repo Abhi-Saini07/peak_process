@@ -1,4 +1,8 @@
 /**
+ * Demo data. Run with `npx prisma db seed` against a local or DEV database
+ * only, never production. Safe to re-run: it replaces only its own rows.
+ * Recruitment demo data lives in ./seedRecruitment.ts.
+ *
  * Three demo employees, created via Prisma so Priya
  * Sharma's Aadhaar/PAN can be properly AES-256-GCM encrypted with the
  * real ENCRYPTION_KEY — something a plain .sql file can't produce. Run
@@ -6,6 +10,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { encryptField } from "../lib/security/encryption";
+import { seedRecruitment } from "./seedRecruitment";
 
 const prisma = new PrismaClient();
 
@@ -165,6 +170,8 @@ async function main() {
   });
 
   console.log("Seeded 3 demo employees (Priya Sharma's Aadhaar/PAN are encrypted, matching production behavior).");
+
+  console.log(await seedRecruitment(prisma));
 }
 
 main()
