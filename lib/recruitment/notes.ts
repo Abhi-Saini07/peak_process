@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ApplicationNoteEntry, ApplicationStatusHistoryEntry } from "@/types/recruitment";
+import type { ApplicationNoteEntry, ApplicationStatusHistoryEntry, EmailLogEntry } from "@/types/recruitment";
 
 /**
  * HR notes and the Activity timeline. Pure: shared by the note composer, the
@@ -28,22 +28,26 @@ export type NoteInput = z.output<typeof noteInputSchema>;
 
 export type ActivityItem =
   | { kind: "status"; id: string; at: string; entry: ApplicationStatusHistoryEntry }
-  | { kind: "note"; id: string; at: string; note: ApplicationNoteEntry };
+  | { kind: "note"; id: string; at: string; note: ApplicationNoteEntry }
+  | { kind: "email"; id: string; at: string; email: EmailLogEntry };
 
 /** Status changes and notes merged into one list, newest first. Ties keep
  *  status changes above notes so a "rejected" row sits above its follow-up. */
 export function buildActivityTimeline(
   history: readonly ApplicationStatusHistoryEntry[],
   notes: readonly ApplicationNoteEntry[],
+  emails: readonly EmailLogEntry[] = [],
 ): ActivityItem[] {
   const items: ActivityItem[] = [
     ...history.map((entry) => ({ kind: "status" as const, id: `s-${entry.id}`, at: entry.changedAt, entry })),
     ...notes.map((note) => ({ kind: "note" as const, id: `n-${note.id}`, at: note.createdAt, note })),
+    ...emails.map((email) => ({ kind: "email" as const, id: `e-${email.id}`, at: email.createdAt, email })),
   ];
   return items.sort((a, b) => {
     const diff = Date.parse(b.at) - Date.parse(a.at);
     if (diff !== 0) return diff;
-    return a.kind === b.kind ? 0 : a.kind === "status" ? -1 : 1;
+    const rank = { status: 0, email: 1, note: 2 } as const;
+    return rank[a.kind] - rank[b.kind];
   });
 }
 

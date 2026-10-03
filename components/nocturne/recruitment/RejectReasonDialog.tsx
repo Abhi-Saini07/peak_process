@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils/cn";
 import { REJECT_NOTE_MAX, REJECT_REASON_OPTIONS } from "@/lib/recruitment/rejection";
 import type { RejectReasonPicker } from "@/hooks/recruitment/useRejectReasonPicker";
 import { NocturneButton } from "@/components/nocturne/ui/NocturneButton";
+import { NocturneCheckbox } from "@/components/nocturne/ui/NocturneCheckbox";
 import { nocturneFieldInputVariants } from "@/components/nocturne/ui/nocturneFieldStyles";
 import { KbdHint, adminEyebrowClass, adminLabelClass } from "@/components/nocturne/recruitment/AdminShellNocturne";
 
@@ -120,6 +121,13 @@ export function RejectReasonDialog({
             className={cn(nocturneFieldInputVariants({ hasError: Boolean(picker.error) }), "mt-1.5 resize-y py-2.5")}
           />
         </div>
+
+        <NocturneCheckbox
+          id="reject-notify-candidate"
+          checked={picker.notifyCandidate}
+          onChange={(event) => picker.setNotifyCandidate(event.target.checked)}
+          label="Notify candidate (a kind email that doesn't give the reason)"
+        />
 
         {message && (
           <p id={errorId} role="alert" className="text-sm text-nocturne-error">

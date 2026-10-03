@@ -82,6 +82,7 @@ model Employee {
   sourceApplication   JobApplication?      @relation("EmployeeSourceApplication", fields: [sourceApplicationId], references: [id], onDelete: SetNull)
   hiredApplication    JobApplication?      @relation("ApplicationEmployee")
   onboardingInvites   OnboardingInvite[]
+  emailLogs           EmailLog[]
 
   @@map("employees")
 }
@@ -386,6 +387,7 @@ model JobApplication {
   documents     ApplicationDocument[]
   statusHistory ApplicationStatusHistory[]
   notes         ApplicationNote[]
+  emailLogs     EmailLog[]
 
   @@unique([jobId, candidateId], map: "uq_job_applications_job_candidate")
   @@index([jobId], map: "idx_job_applications_job")
@@ -487,4 +489,35 @@ model AdminAuditLog {
   @@index([entity, entityId], map: "idx_admin_audit_log_entity")
   @@index([createdAt], map: "idx_admin_audit_log_created")
   @@map("admin_audit_log")
+}
+
+/// sent: accepted by the provider. failed: the send (or rendering) failed.
+/// logged: no RESEND_API_KEY, so the email was printed to the server log (dev).
+enum EmailStatus {
+  sent
+  failed
+  logged
+}
+
+/// One row per transactional email attempt (lib/server/notifications.ts), so
+/// the application's activity timeline can show what was sent and what failed.
+/// Emails never block the action that triggered them.
+model EmailLog {
+  id                String      @id @default(uuid()) @db.Char(36)
+  applicationId     String?     @map("application_id") @db.Char(36)
+  employeeId        String?     @map("employee_id") @db.Char(36)
+  template          String      @db.VarChar(48)
+  recipient         String      @db.VarChar(255)
+  subject           String      @db.VarChar(255)
+  status            EmailStatus
+  providerMessageId String?     @map("provider_message_id") @db.VarChar(128)
+  error             String?     @db.VarChar(500)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  application JobApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  employee    Employee?       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt], map: "idx_email_log_application_created")
+  @@index([employeeId], map: "idx_email_log_employee")
+  @@map("email_log")
 }

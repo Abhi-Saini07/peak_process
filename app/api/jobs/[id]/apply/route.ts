@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { HONEYPOT_FIELD, jobApplicationSchemaFor } from "@/lib/schemas/application.schema";
 import { createApplication } from "@/lib/server/applicationRepository";
 import { getOpenJobKnockouts } from "@/lib/server/jobRepository";
@@ -8,6 +8,7 @@ import { knockoutAnswersToBooleans, toPublicKnockouts } from "@/lib/recruitment/
 import { MAGIC_BYTES_NEEDED, validateDocument } from "@/lib/recruitment/uploads";
 import { PRIVACY_CONSENT_VERSION } from "@/lib/recruitment/consent";
 import { applicationReferenceFromId } from "@/lib/recruitment/reference";
+import { notifyApplicationReceived } from "@/lib/server/notifications";
 
 export const runtime = "nodejs";
 
@@ -97,5 +98,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/jobs/[i
   }
 
   if ("error" in result) return badRequest(result.error);
+  // The confirmation email goes out after the response; it can't fail the application.
+  const applicationId = result.applicationId;
+  after(() => notifyApplicationReceived(applicationId));
   return NextResponse.json(result);
 }

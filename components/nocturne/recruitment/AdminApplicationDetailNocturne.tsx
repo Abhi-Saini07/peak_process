@@ -58,7 +58,7 @@ export function AdminApplicationDetailNocturne({ application, now }: { applicati
   const { setStatus, isUpdating, error, clearError } = useApplicationStatusActions(application.id);
   const nextStatuses = availableNextStatuses(application.status);
   const activity = useApplicationActivity(application);
-  const rejectPicker = useRejectReasonPicker((input) => setStatus("rejected", input));
+  const rejectPicker = useRejectReasonPicker((input, { notifyCandidate }) => setStatus("rejected", input, notifyCandidate));
   const offerForm = useOfferForm(application.id, application.offer?.details ?? null);
   const hire = useHireAction(application.id);
 

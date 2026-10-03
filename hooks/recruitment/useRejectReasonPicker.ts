@@ -14,17 +14,21 @@ import {
  * the API route uses. `onConfirm` resolves to true when the change went
  * through, which closes the picker.
  */
-export function useRejectReasonPicker(onConfirm: (input: RejectInput) => Promise<boolean>) {
+export function useRejectReasonPicker(
+  onConfirm: (input: RejectInput, options: { notifyCandidate: boolean }) => Promise<boolean>,
+) {
   const [isOpen, setIsOpen] = useState(false);
   const [reason, setReason] = useState<RejectReason | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notifyCandidate, setNotifyCandidate] = useState(true);
 
   function open() {
     setReason(null);
     setNote("");
     setError(null);
+    setNotifyCandidate(true);
     setIsOpen(true);
   }
 
@@ -54,7 +58,7 @@ export function useRejectReasonPicker(onConfirm: (input: RejectInput) => Promise
     }
     setIsSubmitting(true);
     setError(null);
-    const done = await onConfirm(check.value);
+    const done = await onConfirm(check.value, { notifyCandidate });
     setIsSubmitting(false);
     if (done) setIsOpen(false);
   }
@@ -75,6 +79,8 @@ export function useRejectReasonPicker(onConfirm: (input: RejectInput) => Promise
     handleKeyDown,
     submit,
     noteRequired: reason === "other",
+    notifyCandidate,
+    setNotifyCandidate,
   };
 }
 

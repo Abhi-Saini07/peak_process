@@ -11,6 +11,7 @@ import { canTransition, GUARDED_STAGES } from "@/lib/recruitment/stages";
 import type { RejectInput } from "@/lib/recruitment/rejection";
 import type { NoteInput } from "@/lib/recruitment/notes";
 import { parseOfferDetails } from "@/lib/recruitment/offers";
+import { EMAIL_TEMPLATE_LABEL, type EmailTemplate } from "@/lib/email/templates/labels";
 import {
   computeKnockoutFlag,
   parseStoredKnockoutAnswers,
@@ -39,6 +40,7 @@ const APPLICATION_WITH_RELATIONS = {
     job: { select: { title: true } },
     documents: true,
     statusHistory: { include: { changedByAdmin: true }, orderBy: { changedAt: "asc" } },
+    emailLogs: { orderBy: { createdAt: "asc" } },
   },
 } satisfies Prisma.JobApplicationDefaultArgs;
 
@@ -116,6 +118,14 @@ function mapDetail(app: ApplicationWithRelations, notes: NoteWithAuthor[]): Appl
     notes: notes.map(mapNote),
     knockoutAnswers: parseStoredKnockoutAnswers(app.knockoutAnswers),
     offer: offerOf(app),
+    emails: app.emailLogs.map((e) => ({
+      id: e.id,
+      label: EMAIL_TEMPLATE_LABEL[e.template as EmailTemplate] ?? e.template,
+      recipient: e.recipient,
+      status: e.status,
+      error: e.error,
+      createdAt: toISO(e.createdAt),
+    })),
     employeeId: app.employeeId,
   };
 }

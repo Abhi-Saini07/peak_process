@@ -51,11 +51,16 @@ export function useApplicationsBoard(applications: readonly ApplicationSummary[]
     });
   }
 
-  async function commitMove(app: ApplicationSummary, to: ApplicationStatus, reject: RejectInput | null): Promise<boolean> {
+  async function commitMove(
+    app: ApplicationSummary,
+    to: ApplicationStatus,
+    reject: RejectInput | null,
+    notifyCandidate = true,
+  ): Promise<boolean> {
     setError(null);
     setOverrides((current) => ({ ...current, [app.id]: { status: to, stageEnteredAt: new Date().toISOString() } }));
     setPending(app.id, true);
-    const result = await patchApplicationStatus(app.id, to, reject);
+    const result = await patchApplicationStatus(app.id, to, reject, notifyCandidate);
     setPending(app.id, false);
     if (!result.ok) {
       setOverrides((current) => {
@@ -70,10 +75,10 @@ export function useApplicationsBoard(applications: readonly ApplicationSummary[]
     return true;
   }
 
-  const rejectPicker = useRejectReasonPicker(async (input) => {
+  const rejectPicker = useRejectReasonPicker(async (input, { notifyCandidate }) => {
     if (!rejectTarget) return true;
     // The dialog closes either way; a failure shows on the board.
-    await commitMove(rejectTarget, "rejected", input);
+    await commitMove(rejectTarget, "rejected", input, notifyCandidate);
     return true;
   });
 

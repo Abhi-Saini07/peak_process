@@ -105,6 +105,16 @@ export interface ApplicationNoteEntry {
   createdAt: string;
 }
 
+export interface EmailLogEntry {
+  id: string;
+  /** Human label, e.g. "Offer", "Interview scheduled". */
+  label: string;
+  recipient: string;
+  status: "sent" | "failed" | "logged";
+  error: string | null;
+  createdAt: string;
+}
+
 export interface ApplicationDocumentMeta {
   id: string;
   documentType: "resume" | "other";
@@ -128,6 +138,8 @@ export interface ApplicationDetail extends ApplicationSummary {
   knockoutAnswers: KnockoutAnswer[];
   /** Set once an offer has been made (status offered, or later). */
   offer: { details: OfferDetails; sentAt: string } | null;
+  /** Every transactional email attempt for this application. */
+  emails: EmailLogEntry[];
   /** The Employee created when this person was hired. */
   employeeId: string | null;
 }

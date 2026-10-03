@@ -20,13 +20,14 @@ export async function patchApplicationStatus(
   applicationId: string,
   status: ApplicationStatus,
   reject: RejectInput | null = null,
+  notifyCandidate = true,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const res = await fetch(`/api/admin/applications/${applicationId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
-        reject ? { status, rejectReason: reject.reason, rejectNote: reject.note } : { status },
+        reject ? { status, rejectReason: reject.reason, rejectNote: reject.note, notifyCandidate } : { status },
       ),
     });
     if (res.ok) return { ok: true };
@@ -42,10 +43,14 @@ export function useApplicationStatusActions(applicationId: string) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function setStatus(status: ApplicationStatus, reject: RejectInput | null = null): Promise<boolean> {
+  async function setStatus(
+    status: ApplicationStatus,
+    reject: RejectInput | null = null,
+    notifyCandidate = true,
+  ): Promise<boolean> {
     setIsUpdating(true);
     setError(null);
-    const result = await patchApplicationStatus(applicationId, status, reject);
+    const result = await patchApplicationStatus(applicationId, status, reject, notifyCandidate);
     setIsUpdating(false);
     if (!result.ok) {
       setError(result.error);

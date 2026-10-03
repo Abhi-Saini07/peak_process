@@ -1,13 +1,14 @@
 "use client";
 
 import { useId } from "react";
-import { ArrowRightLeft, MessageSquareText, Star } from "lucide-react";
+import { ArrowRightLeft, Mail, MessageSquareText, Star } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { formatRelativeTime } from "@/lib/utils/formatRelativeTime";
 import { applicationStatusLabel } from "@/lib/recruitment/constants";
 import { rejectReasonLabel } from "@/lib/recruitment/rejection";
 import { NOTE_BODY_MAX, type ActivityItem } from "@/lib/recruitment/notes";
 import type { ApplicationActivity } from "@/hooks/recruitment/useApplicationActivity";
+import type { EmailLogEntry } from "@/types/recruitment";
 import { NocturneButton } from "@/components/nocturne/ui/NocturneButton";
 import { nocturneFieldInputVariants } from "@/components/nocturne/ui/nocturneFieldStyles";
 import { adminCardTitleClass, adminLabelClass, adminPanelClass } from "@/components/nocturne/recruitment/AdminShellNocturne";
@@ -84,69 +85,89 @@ function StarRatingInput({ value, onChange }: { value: number | null; onChange: 
   );
 }
 
-function ActivityRow({ item, isLast }: { item: ActivityItem; isLast: boolean }) {
-  const Icon = item.kind === "note" ? MessageSquareText : ArrowRightLeft;
-  const author = item.kind === "note" ? item.note.authorName : item.entry.changedByName;
+const EMAIL_STATUS: Record<EmailLogEntry["status"], { label: string; tone: string }> = {
+  sent: { label: "Sent", tone: "bg-nocturne-success-tint text-nocturne-success" },
+  failed: { label: "Failed", tone: "bg-nocturne-error-tint text-nocturne-error" },
+  logged: { label: "Logged (dev, not sent)", tone: "bg-nocturne-raised text-nocturne-ink-muted" },
+};
+
+function RowTime({ at }: { at: string }) {
+  return (
+    <time dateTime={at} title={formatFull(at)} suppressHydrationWarning className="text-xs text-nocturne-ink-muted">
+      {formatRelativeTime(at)}
+    </time>
+  );
+}
+
+function RowShell({ icon: Icon, tone, isLast, children }: { icon: typeof Mail; tone: string; isLast: boolean; children: React.ReactNode }) {
   return (
     <li className="relative flex gap-3.5 pb-5 last:pb-0">
       {!isLast && <span className="absolute top-9 bottom-0 left-4 w-px bg-nocturne-border" aria-hidden />}
-      <span
-        className={cn(
-          "relative inline-flex size-8 shrink-0 items-center justify-center rounded-nocturne-pill",
-          item.kind === "note"
-            ? "bg-nocturne-accent-tint text-nocturne-accent-text"
-            : "border border-nocturne-border bg-nocturne-raised text-nocturne-ink-muted",
-        )}
-        aria-hidden
-      >
+      <span className={cn("relative inline-flex size-8 shrink-0 items-center justify-center rounded-nocturne-pill", tone)} aria-hidden>
         <Icon className="size-3.75" />
       </span>
-      <div className="min-w-0 flex-1 pt-1">
-        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-          {item.kind === "note" ? (
-            <span className="font-bold text-nocturne-ink">{author ?? "Former HR member"}</span>
-          ) : (
-            <span className="text-nocturne-ink">
-              {item.entry.oldStatus ? (
-                <>
-                  {applicationStatusLabel(item.entry.oldStatus)} →{" "}
-                  <span className="font-bold">{applicationStatusLabel(item.entry.newStatus)}</span>
-                </>
-              ) : (
-                <span className="font-bold">Application received</span>
-              )}
-              {author ? <span className="text-nocturne-ink-muted"> · by {author}</span> : null}
-            </span>
-          )}
-          <time
-            dateTime={item.at}
-            title={formatFull(item.at)}
-            suppressHydrationWarning
-            className="text-xs text-nocturne-ink-muted"
-          >
-            {formatRelativeTime(item.at)}
-          </time>
-        </p>
-        {item.kind === "note" ? (
-          <>
-            {item.note.rating != null && <Stars value={item.note.rating} className="mt-1.5" />}
-            <p className="mt-1.5 text-sm leading-relaxed break-words whitespace-pre-line text-nocturne-ink">
-              {item.note.body}
-            </p>
-          </>
-        ) : (
-          item.entry.rejectReason && (
-            <div className="mt-2 rounded-nocturne-control bg-nocturne-raised px-3 py-2 text-sm">
-              <span className="text-nocturne-ink-muted">Reason: </span>
-              <span className="font-semibold text-nocturne-ink">{rejectReasonLabel(item.entry.rejectReason)}</span>
-              {item.entry.rejectNote && (
-                <p className="mt-1 break-words whitespace-pre-line text-nocturne-ink-muted">{item.entry.rejectNote}</p>
-              )}
-            </div>
-          )
-        )}
-      </div>
+      <div className="min-w-0 flex-1 pt-1">{children}</div>
     </li>
+  );
+}
+
+const NEUTRAL_ICON = "border border-nocturne-border bg-nocturne-raised text-nocturne-ink-muted";
+
+function ActivityRow({ item, isLast }: { item: ActivityItem; isLast: boolean }) {
+  if (item.kind === "email") {
+    const status = EMAIL_STATUS[item.email.status];
+    return (
+      <RowShell icon={Mail} tone={NEUTRAL_ICON} isLast={isLast}>
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+          <span className="text-nocturne-ink">
+            Email: <span className="font-bold">{item.email.label}</span>
+            <span className="text-nocturne-ink-muted"> · to {item.email.recipient}</span>
+          </span>
+          <span className={cn("rounded-nocturne-pill px-2 py-0.5 text-xs font-semibold", status.tone)}>{status.label}</span>
+          <RowTime at={item.at} />
+        </p>
+        {item.email.error && <p className="mt-1 text-xs break-words text-nocturne-error">{item.email.error}</p>}
+      </RowShell>
+    );
+  }
+
+  if (item.kind === "note") {
+    return (
+      <RowShell icon={MessageSquareText} tone="bg-nocturne-accent-tint text-nocturne-accent-text" isLast={isLast}>
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+          <span className="font-bold text-nocturne-ink">{item.note.authorName ?? "Former HR member"}</span>
+          <RowTime at={item.at} />
+        </p>
+        {item.note.rating != null && <Stars value={item.note.rating} className="mt-1.5" />}
+        <p className="mt-1.5 text-sm leading-relaxed break-words whitespace-pre-line text-nocturne-ink">{item.note.body}</p>
+      </RowShell>
+    );
+  }
+
+  const { entry } = item;
+  return (
+    <RowShell icon={ArrowRightLeft} tone={NEUTRAL_ICON} isLast={isLast}>
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+        <span className="text-nocturne-ink">
+          {entry.oldStatus ? (
+            <>
+              {applicationStatusLabel(entry.oldStatus)} → <span className="font-bold">{applicationStatusLabel(entry.newStatus)}</span>
+            </>
+          ) : (
+            <span className="font-bold">Application received</span>
+          )}
+          {entry.changedByName ? <span className="text-nocturne-ink-muted"> · by {entry.changedByName}</span> : null}
+        </span>
+        <RowTime at={item.at} />
+      </p>
+      {entry.rejectReason && (
+        <div className="mt-2 rounded-nocturne-control bg-nocturne-raised px-3 py-2 text-sm">
+          <span className="text-nocturne-ink-muted">Reason: </span>
+          <span className="font-semibold text-nocturne-ink">{rejectReasonLabel(entry.rejectReason)}</span>
+          {entry.rejectNote && <p className="mt-1 break-words whitespace-pre-line text-nocturne-ink-muted">{entry.rejectNote}</p>}
+        </div>
+      )}
+    </RowShell>
   );
 }
 

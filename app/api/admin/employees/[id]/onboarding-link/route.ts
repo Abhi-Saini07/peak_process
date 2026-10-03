@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireAdminUserOrResponse } from "@/lib/server/adminSession";
 import { reissueOnboardingInvite } from "@/lib/server/hiringRepository";
 import { onboardingStartUrl } from "@/lib/server/onboardingInvites";
+import { notifyOnboardingInvite } from "@/lib/server/notifications";
 
 export const runtime = "nodejs";
 
@@ -13,5 +14,7 @@ export async function POST(_request: NextRequest, ctx: RouteContext<"/api/admin/
   const { id } = await ctx.params;
   const invite = await reissueOnboardingInvite(id, auth.admin.id);
   if (!invite) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
-  return NextResponse.json({ onboardingUrl: onboardingStartUrl(invite.token), expiresAt: invite.expiresAt });
+  const onboardingUrl = onboardingStartUrl(invite.token);
+  await notifyOnboardingInvite(id, onboardingUrl, new Date(invite.expiresAt));
+  return NextResponse.json({ onboardingUrl, expiresAt: invite.expiresAt });
 }

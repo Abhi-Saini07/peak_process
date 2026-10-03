@@ -14,6 +14,7 @@ import type { OfferForm, HireAction } from "@/hooks/recruitment/useOfferActions"
 import { NocturneDialog } from "@/components/nocturne/ui/NocturneDialog";
 import { NocturneButton, nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import { NocturneTextField } from "@/components/nocturne/ui/NocturneTextField";
+import { NocturneCheckbox } from "@/components/nocturne/ui/NocturneCheckbox";
 import { NocturneTextareaField } from "@/components/nocturne/ui/NocturneTextareaField";
 import { adminCardTitleClass, adminLabelClass, adminPanelClass } from "@/components/nocturne/recruitment/AdminShellNocturne";
 import type { ApplicationDetail } from "@/types/recruitment";
@@ -106,6 +107,12 @@ export function OfferDialogNocturne({ form, candidateName }: { form: OfferForm; 
             helperText="Optional. Included in the offer email."
             error={form.errors.note?.message}
             {...form.register("note")}
+          />
+          <NocturneCheckbox
+            id="offer-notify-candidate"
+            checked={form.notifyCandidate}
+            onChange={(event) => form.setNotifyCandidate(event.target.checked)}
+            label="Notify candidate (emails the offer)"
           />
           {form.serverError && (
             <p role="alert" className="text-sm text-nocturne-error">

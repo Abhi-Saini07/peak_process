@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdminUserOrResponse } from "@/lib/server/adminSession";
 import { updateApplicationStatus } from "@/lib/server/applicationRepository";
 import { validateRejectInput, type RejectInput } from "@/lib/recruitment/rejection";
+import { notifyRejection } from "@/lib/server/notifications";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,8 @@ const bodySchema = z.object({
   status: z.enum(["applied", "under_review", "shortlisted", "interview", "offered", "selected", "rejected"]),
   rejectReason: z.unknown().optional(),
   rejectNote: z.unknown().optional(),
+  /** Rejections only: email the candidate (a kind note that never gives the reason). */
+  notifyCandidate: z.boolean().optional(),
 });
 
 const STATUS_FOR_CODE = { not_found: 404, illegal_transition: 422, conflict: 409 } as const;
@@ -37,6 +40,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
   const result = await updateApplicationStatus(id, status, auth.admin.id, reject);
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: STATUS_FOR_CODE[result.code] });
+  }
+  if (status === "rejected" && parsed.data.notifyCandidate !== false) {
+    // Best-effort and awaited, so the email shows in the timeline on refresh.
+    await notifyRejection(id);
   }
   return NextResponse.json(result);
 }

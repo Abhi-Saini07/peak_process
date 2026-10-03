@@ -7,7 +7,7 @@ import type { ApplicationDetail } from "@/types/recruitment";
 
 /** Activity timeline items plus the note composer's state. Posting a note
  *  validates with the same Zod schema as the API, then refreshes the page. */
-export function useApplicationActivity(application: Pick<ApplicationDetail, "id" | "history" | "notes">) {
+export function useApplicationActivity(application: Pick<ApplicationDetail, "id" | "history" | "notes" | "emails">) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [rating, setRating] = useState<number | null>(null);
@@ -15,8 +15,8 @@ export function useApplicationActivity(application: Pick<ApplicationDetail, "id"
   const [isSaving, setIsSaving] = useState(false);
 
   const items = useMemo(
-    () => buildActivityTimeline(application.history, application.notes),
-    [application.history, application.notes],
+    () => buildActivityTimeline(application.history, application.notes, application.emails),
+    [application.history, application.notes, application.emails],
   );
   const average = useMemo(() => averageRating(application.notes), [application.notes]);
   const ratedCount = application.notes.filter((n) => n.rating != null).length;

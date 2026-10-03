@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireAdminUserOrResponse } from "@/lib/server/adminSession";
 import { hireApplication } from "@/lib/server/hiringRepository";
 import { onboardingStartUrl } from "@/lib/server/onboardingInvites";
+import { notifyOnboardingInvite } from "@/lib/server/notifications";
 
 export const runtime = "nodejs";
 
@@ -19,10 +20,14 @@ export async function POST(_request: NextRequest, ctx: RouteContext<"/api/admin/
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.code === "not_found" ? 404 : 422 });
   }
+  const onboardingUrl = result.inviteToken ? onboardingStartUrl(result.inviteToken) : null;
+  if (onboardingUrl && result.inviteExpiresAt) {
+    await notifyOnboardingInvite(result.employeeId, onboardingUrl, new Date(result.inviteExpiresAt));
+  }
   return NextResponse.json({
     employeeId: result.employeeId,
     alreadyHired: result.alreadyHired,
-    onboardingUrl: result.inviteToken ? onboardingStartUrl(result.inviteToken) : null,
+    onboardingUrl,
     expiresAt: result.inviteExpiresAt,
   });
 }

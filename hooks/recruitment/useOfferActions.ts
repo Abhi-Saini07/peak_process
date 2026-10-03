@@ -35,6 +35,7 @@ export function useOfferForm(applicationId: string, existing: OfferDetails | nul
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [notifyCandidate, setNotifyCandidate] = useState(true);
   const form = useForm<OfferInput, unknown, OfferDetails>({
     resolver: zodResolver(offerInputSchema),
     defaultValues: defaultsFor(existing),
@@ -42,7 +43,7 @@ export function useOfferForm(applicationId: string, existing: OfferDetails | nul
 
   const submit = form.handleSubmit(async (data) => {
     setServerError(null);
-    const result = await postJson(`/api/admin/applications/${applicationId}/offer`, data);
+    const result = await postJson(`/api/admin/applications/${applicationId}/offer`, { ...data, notifyCandidate });
     if (!result.ok) {
       setServerError(result.error);
       return;
@@ -56,6 +57,7 @@ export function useOfferForm(applicationId: string, existing: OfferDetails | nul
     open: () => {
       form.reset(defaultsFor(existing));
       setServerError(null);
+      setNotifyCandidate(true);
       setIsOpen(true);
     },
     close: () => setIsOpen(false),
@@ -65,6 +67,8 @@ export function useOfferForm(applicationId: string, existing: OfferDetails | nul
     serverError,
     submit,
     isRevision: existing !== null,
+    notifyCandidate,
+    setNotifyCandidate,
   };
 }
 
