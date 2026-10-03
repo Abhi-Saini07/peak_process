@@ -113,3 +113,9 @@ export function formatInTimeZone(instant: Date, timeZone: string): string {
   const name = timeZone === "Asia/Kolkata" ? "IST" : zone;
   return `${formatShortDateTime(instant, timeZone)}${name ? ` ${name}` : ""}`;
 }
+
+/** "5 Oct 2026" in the given zone. */
+export function formatDateLabel(instant: Date, timeZone: string): string {
+  const p = parts(instant, timeZone, { day: "numeric", month: "short", year: "numeric" });
+  return `${p.day} ${p.month} ${p.year}`;
+}

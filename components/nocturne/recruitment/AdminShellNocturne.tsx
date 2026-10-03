@@ -165,9 +165,10 @@ function crumbsFor(pathname: string): Crumb[] {
   }
   if (parts[1] === "applications") return [root, postings, { label: "Application" }];
   if (parts[1] === "interviews") return [root, { label: "Interviews" }];
-  if (parts[1] === "employees") {
-    const people: Crumb = { label: "Employees", href: "/admin/employees" };
-    return parts.length === 2 ? [{ label: "People" }, { label: "Employees" }] : [{ label: "People" }, people, { label: "Employee" }];
+  if (parts[1] === "employees" || parts[1] === "onboarding") {
+    const list: Crumb = parts[1] === "employees" ? { label: "Employees", href: "/admin/employees" } : { label: "Onboarding", href: "/admin/onboarding" };
+    const person = parts[1] === "employees" ? "Employee" : "New hire";
+    return parts.length === 2 ? [{ label: "People" }, { label: list.label }] : [{ label: "People" }, list, { label: person }];
   }
   if (parts.length === 1) return [root, { label: "Dashboard" }];
   return [root];

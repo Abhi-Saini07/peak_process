@@ -84,6 +84,15 @@ private window for a clean start.
 | Senior Accountant: edit job | http://localhost:3000/admin/jobs/5eed0001-0000-4000-8000-000000000001 |
 | Senior Accountant: applications (List or Board) | http://localhost:3000/admin/jobs/5eed0001-0000-4000-8000-000000000001/applications |
 | Payroll Specialist: applications | http://localhost:3000/admin/jobs/5eed0001-0000-4000-8000-000000000002/applications |
+| Interviews (upcoming, by day) | http://localhost:3000/admin/interviews |
+| Onboarding (new hires still filling in their details) | http://localhost:3000/admin/onboarding |
+| Employees (people who finished onboarding) | http://localhost:3000/admin/employees |
+
+The HR sidebar has two groups: **Recruitment** (Dashboard, Job postings,
+Interviews) and **People** (Onboarding, Employees). A new hire's own pages
+(`/dashboard`, `/onboarding/...`) have their own sidebar with only their
+onboarding, so HR and new-hire links never mix. "Post a job" is the button on
+the Dashboard and Job postings pages.
 
 ### Applications worth showing
 

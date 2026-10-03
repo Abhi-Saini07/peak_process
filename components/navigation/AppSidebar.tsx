@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Briefcase, CalendarDays, Check, ChevronsLeft, ChevronsRight, ClipboardList, ExternalLink, Gauge, LayoutDashboard, Menu, PlusCircle, Users, X, type LucideIcon } from "lucide-react";
+import { Briefcase, CalendarDays, Check, ChevronsLeft, ChevronsRight, ClipboardList, ExternalLink, Gauge, LayoutDashboard, Menu, UserPlus, Users, X, type LucideIcon } from "lucide-react";
 import { PeakMark } from "@/components/Logo";
 import { NocturneThemeToggle } from "@/components/nocturne/NocturneThemeToggle";
 import { setSidebarPreference, useSidebarPreference } from "@/lib/design/sidebarPreference";
@@ -82,18 +82,33 @@ interface NavSection {
   items: NavItem[];
 }
 
-function useNavSections(): NavSection[] {
+/** HR pages live under /admin; everything else here is the new hire's own portal. */
+function isAdminPath(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
+/**
+ * Two separate navigations, never mixed: HR staff on /admin see recruitment
+ * and people pages; a new hire on /dashboard and /onboarding sees only their
+ * own onboarding.
+ */
+function useNavSections(pathname: string): NavSection[] {
   const currentStepId = useCurrentStepId();
   const onboardingHref = `/onboarding/${getStepById(currentStepId).slug}`;
 
+  if (!isAdminPath(pathname)) {
+    return [
+      {
+        title: "Your onboarding",
+        items: [
+          { label: "Overview", href: "/dashboard", icon: LayoutDashboard, isActive: (p) => p === "/dashboard" },
+          { label: "Onboarding steps", href: onboardingHref, icon: ClipboardList, isActive: (p) => p.startsWith("/onboarding/") },
+        ],
+      },
+    ];
+  }
+
   return [
-    {
-      title: "Onboarding",
-      items: [
-        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, isActive: (p) => p === "/dashboard" },
-        { label: "Onboarding", href: onboardingHref, icon: ClipboardList, isActive: (p) => p.startsWith("/onboarding") },
-      ],
-    },
     {
       title: "Recruitment",
       items: [
@@ -102,10 +117,15 @@ function useNavSections(): NavSection[] {
           label: "Job postings",
           href: "/admin/jobs",
           icon: Briefcase,
-          isActive: (p) => (p.startsWith("/admin/jobs") || p.startsWith("/admin/applications")) && p !== "/admin/jobs/new",
+          isActive: (p) => p.startsWith("/admin/jobs") || p.startsWith("/admin/applications"),
         },
-        { label: "Post a job", href: "/admin/jobs/new", icon: PlusCircle, isActive: (p) => p === "/admin/jobs/new" },
         { label: "Interviews", href: "/admin/interviews", icon: CalendarDays, isActive: (p) => p.startsWith("/admin/interviews") },
+      ],
+    },
+    {
+      title: "People",
+      items: [
+        { label: "Onboarding", href: "/admin/onboarding", icon: UserPlus, isActive: (p) => p.startsWith("/admin/onboarding") },
         { label: "Employees", href: "/admin/employees", icon: Users, isActive: (p) => p.startsWith("/admin/employees") },
       ],
     },
@@ -124,10 +144,10 @@ const CAREERS_ITEM: NavItem = {
 /* Pieces                                                             */
 /* ------------------------------------------------------------------ */
 
-function Brand({ theme, compact }: { theme: SidebarTheme; compact: boolean }) {
+function Brand({ theme, compact, pathname }: { theme: SidebarTheme; compact: boolean; pathname: string }) {
   return (
     <Link
-      href="/dashboard"
+      href={isAdminPath(pathname) ? "/admin" : "/dashboard"}
       aria-label={compact ? "Peak Process Partners — dashboard" : undefined}
       className={cn(
         "flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2",
@@ -279,7 +299,7 @@ function NavBody({
   onNavigate?: () => void;
   footer?: ReactNode;
 }) {
-  const sections = useNavSections();
+  const sections = useNavSections(pathname);
   const fullName = useFullName();
   const showName = Boolean(fullName) && !compact && (pathname === "/dashboard" || pathname.startsWith("/onboarding"));
   return (
@@ -298,7 +318,7 @@ function NavBody({
               {section.items.map((item) => (
                 <li key={item.label}>
                   <NavLink item={item} theme={theme} compact={compact} pathname={pathname} onNavigate={onNavigate} />
-                  {item.label === "Onboarding" && pathname.startsWith("/onboarding/") && (
+                  {item.href.startsWith("/onboarding/") && pathname.startsWith("/onboarding/") && (
                     <OnboardingSteps theme={theme} compact={compact} pathname={pathname} onNavigate={onNavigate} />
                   )}
                 </li>
@@ -314,7 +334,9 @@ function NavBody({
             <p className="mt-0.5 truncate text-sm font-medium">{fullName}</p>
           </div>
         )}
-        <NavLink item={CAREERS_ITEM} theme={theme} compact={compact} pathname={pathname} onNavigate={onNavigate} />
+        {isAdminPath(pathname) && (
+          <NavLink item={CAREERS_ITEM} theme={theme} compact={compact} pathname={pathname} onNavigate={onNavigate} />
+        )}
         {footer}
       </div>
     </>
@@ -403,7 +425,7 @@ export function AppSidebar() {
         >
           <Menu className="size-5" aria-hidden />
         </button>
-        <Brand theme={theme} compact={false} />
+        <Brand theme={theme} compact={false} pathname={pathname} />
       </div>
 
       <AnimatePresence>
@@ -435,7 +457,7 @@ export function AppSidebar() {
               transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             >
               <div className="flex items-center justify-between gap-3">
-                <Brand theme={theme} compact={false} />
+                <Brand theme={theme} compact={false} pathname={pathname} />
                 <button type="button" onClick={closeDrawer} aria-label="Close navigation menu" className={cn(controlClass, "size-10 shrink-0")}>
                   <X className="size-5" aria-hidden />
                 </button>
@@ -468,7 +490,7 @@ export function AppSidebar() {
         )}
       >
         <div className={cn("flex", collapsed ? "justify-center" : "px-1")}>
-          <Brand theme={theme} compact={collapsed} />
+          <Brand theme={theme} compact={collapsed} pathname={pathname} />
         </div>
         <NavBody
           theme={theme}

@@ -10,9 +10,16 @@ export interface EmployeeSummary {
   submittedAt: string | null;
   /** Set when this person was hired through the recruitment pipeline. */
   hiredFor: { applicationId: string; jobTitle: string } | null;
+  /** The first onboarding step that isn't done yet (null once everything is filled in). */
+  nextStep: string | null;
+  /** The latest onboarding link: none sent, waiting to be opened, opened, or expired unopened. */
+  link: { state: "none" | "sent" | "opened" | "expired"; at: string | null };
   createdAt: string;
   updatedAt: string;
 }
+
+/** The two admin People lists: new hires still onboarding, and people who finished. */
+export type PeopleGroup = "onboarding" | "employees";
 
 export type GovernmentIds = { aadhaar: string | null; pan: string | null; uan: string | null };
 

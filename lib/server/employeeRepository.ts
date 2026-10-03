@@ -7,12 +7,13 @@ import { STEP_META as stepRegistry } from "@/lib/onboarding/steps.meta";
 import { EMPLOYEE_WITH_RELATIONS, mapSnapshot } from "@/lib/server/onboardingRepository";
 import { logAdminAction } from "@/lib/server/auditLog";
 import { maskGovernmentId } from "@/lib/onboarding/masking";
-import type { EmployeeDetail, EmployeeSummary, GovernmentIds } from "@/types/employees";
+import type { EmployeeDetail, EmployeeSummary, GovernmentIds, PeopleGroup } from "@/types/employees";
 
 const WITH_SOURCE = {
   include: {
     ...EMPLOYEE_WITH_RELATIONS.include,
     sourceApplication: { select: { id: true, job: { select: { id: true, title: true } } } },
+    onboardingInvites: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true, expiresAt: true, usedAt: true } },
   },
 } satisfies Prisma.EmployeeDefaultArgs;
 type EmployeeWithSource = Prisma.EmployeeGetPayload<typeof WITH_SOURCE>;
@@ -37,8 +38,18 @@ function displayName(e: EmployeeWithSource): string {
   return e.fullName?.trim() || [pi?.firstName, pi?.lastName].filter(Boolean).join(" ") || "Unnamed";
 }
 
-function toSummary(e: EmployeeWithSource): EmployeeSummary {
+function linkState(e: EmployeeWithSource, now: Date): EmployeeSummary["link"] {
+  const invite = e.onboardingInvites[0];
+  if (!invite) return { state: "none", at: null };
+  if (invite.usedAt) return { state: "opened", at: invite.usedAt.toISOString() };
+  if (invite.expiresAt <= now) return { state: "expired", at: invite.expiresAt.toISOString() };
+  return { state: "sent", at: invite.createdAt.toISOString() };
+}
+
+function toSummary(e: EmployeeWithSource, now = new Date()): EmployeeSummary {
   const snapshot = mapSnapshot(e);
+  const statuses = computeStepStatuses(snapshot);
+  const next = stepRegistry.find((step) => statuses[step.id] !== "completed");
   return {
     id: e.id,
     name: displayName(e),
@@ -48,14 +59,45 @@ function toSummary(e: EmployeeWithSource): EmployeeSummary {
     submissionReference: e.submissionReference,
     submittedAt: e.submittedAt?.toISOString() ?? null,
     hiredFor: e.sourceApplication ? { applicationId: e.sourceApplication.id, jobTitle: e.sourceApplication.job.title } : null,
+    nextStep: e.status === "submitted" ? null : (next?.label ?? null),
+    link: linkState(e, now),
     createdAt: e.createdAt.toISOString(),
     updatedAt: e.updatedAt.toISOString(),
   };
 }
 
-export async function listEmployees(): Promise<EmployeeSummary[]> {
-  const rows = await prisma.employee.findMany({ where: REAL_EMPLOYEE, ...WITH_SOURCE, orderBy: { updatedAt: "desc" }, take: 500 });
-  return rows.map(toSummary);
+const GROUP_STATUS = { onboarding: "in_progress", employees: "submitted" } as const;
+
+/**
+ * One of the two People lists. "onboarding": new hires who haven't submitted
+ * yet, most recently active first. "employees": people who finished
+ * onboarding, most recently submitted first.
+ */
+export async function listPeople(group: PeopleGroup): Promise<EmployeeSummary[]> {
+  const rows = await prisma.employee.findMany({
+    where: { AND: [REAL_EMPLOYEE, { status: GROUP_STATUS[group] }] },
+    ...WITH_SOURCE,
+    orderBy: group === "employees" ? [{ submittedAt: "desc" }, { updatedAt: "desc" }] : { updatedAt: "desc" },
+    take: 500,
+  });
+  const now = new Date();
+  return rows.map((row) => toSummary(row, now));
+}
+
+/** How many people are in each list (for the tabs). */
+export async function countPeople(): Promise<Record<PeopleGroup, number>> {
+  const [onboarding, employees] = await Promise.all([
+    prisma.employee.count({ where: { AND: [REAL_EMPLOYEE, { status: "in_progress" }] } }),
+    prisma.employee.count({ where: { AND: [REAL_EMPLOYEE, { status: "submitted" }] } }),
+  ]);
+  return { onboarding, employees };
+}
+
+/** Which list a person belongs to (null if there's no such record). */
+export async function peopleGroupOf(id: string): Promise<PeopleGroup | null> {
+  const e = await prisma.employee.findUnique({ where: { id }, select: { status: true } });
+  if (!e) return null;
+  return e.status === "submitted" ? "employees" : "onboarding";
 }
 
 /** Everything the read-only detail page shows. Government IDs come back

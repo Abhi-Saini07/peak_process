@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { listEmployees } from "@/lib/server/employeeRepository";
-import { AdminEmployeesListNocturne } from "@/components/nocturne/recruitment/AdminEmployeesNocturne";
+import { PeopleListPage } from "@/app/admin/(protected)/people";
 
 export const metadata: Metadata = { title: "Employees | Peak Process Partners" };
 
-export default async function AdminEmployeesPage() {
-  return <AdminEmployeesListNocturne employees={await listEmployees()} />;
+/** People who have finished and submitted their onboarding. */
+export default function AdminEmployeesPage() {
+  return <PeopleListPage group="employees" />;
 }

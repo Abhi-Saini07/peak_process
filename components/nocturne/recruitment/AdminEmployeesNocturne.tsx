@@ -13,7 +13,9 @@ import {
   adminLabelClass,
   adminPanelClass,
 } from "@/components/nocturne/recruitment/AdminShellNocturne";
-import type { EmployeeDetail, EmployeeSummary } from "@/types/employees";
+import type { EmployeeDetail, EmployeeSummary, PeopleGroup } from "@/types/employees";
+import { formatRelativeTime } from "@/lib/utils/formatRelativeTime";
+import { formatDateLabel } from "@/lib/recruitment/timezones";
 import type { StepStatus } from "@/types/onboarding";
 import { genderOptions } from "@/lib/schemas/shared";
 import { coverageTypeOptions } from "@/lib/schemas/healthInsurance.schema";
@@ -23,9 +25,8 @@ function optionLabel(options: readonly { value: string; label: string }[], value
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
-function formatDate(iso: string | null): string | null {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+function formatDate(iso: string | null, timeZone: string): string | null {
+  return iso ? formatDateLabel(new Date(iso), timeZone) : null;
 }
 
 function EmployeeStatusPill({ status }: { status: EmployeeSummary["status"] }) {
@@ -60,70 +61,191 @@ function CompletionBar({ percent }: { percent: number }) {
   );
 }
 
-const GRID = "xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto]";
+const PEOPLE_COPY = {
+  onboarding: {
+    eyebrow: "People · Onboarding",
+    title: "Onboarding",
+    lead: "New hires who are still filling in their onboarding. They move to Employees once they submit.",
+    emptyTitle: "Nobody is onboarding right now",
+    emptyBody: "Mark a candidate as hired from their application. They get an onboarding link and show up here.",
+  },
+  employees: {
+    eyebrow: "People · Employees",
+    title: "Employees",
+    lead: "People who have finished and submitted their onboarding.",
+    emptyTitle: "No employees yet",
+    emptyBody: "New hires appear here as soon as they submit their onboarding.",
+  },
+} as const;
 
-export function AdminEmployeesListNocturne({ employees }: { employees: EmployeeSummary[] }) {
+const LINK_LABEL: Record<EmployeeSummary["link"]["state"], { text: string; tone: string }> = {
+  none: { text: "Not sent", tone: "bg-nocturne-raised text-nocturne-ink-muted" },
+  sent: { text: "Sent, not opened", tone: "bg-nocturne-gold-tint text-nocturne-gold" },
+  opened: { text: "Opened", tone: "bg-nocturne-success-tint text-nocturne-success" },
+  expired: { text: "Expired", tone: "bg-nocturne-error-tint text-nocturne-error" },
+};
+
+function Chip({ tone, children }: { tone: string; children: React.ReactNode }) {
+  return (
+    <span className={cn("inline-flex h-6.5 items-center rounded-nocturne-pill px-2.5 text-xs font-semibold whitespace-nowrap", tone)}>
+      {children}
+    </span>
+  );
+}
+
+/** "Onboarding · 3" / "Employees · 5" tabs shared by the two People lists. */
+function PeopleTabs({ current, counts }: { current: PeopleGroup; counts: Record<PeopleGroup, number> }) {
+  const tabs: { group: PeopleGroup; label: string; href: string }[] = [
+    { group: "onboarding", label: "Onboarding", href: "/admin/onboarding" },
+    { group: "employees", label: "Employees", href: "/admin/employees" },
+  ];
+  return (
+    <nav aria-label="People" className="mt-6 inline-flex rounded-nocturne-control border border-nocturne-border bg-nocturne-card p-1 shadow-nocturne-rest">
+      {tabs.map((tab) => {
+        const active = tab.group === current;
+        return (
+          <Link
+            key={tab.group}
+            href={tab.href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "inline-flex h-9 items-center gap-2 rounded-[calc(var(--radius-nocturne-control)-2px)] px-3.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent",
+              active ? "bg-nocturne-accent text-nocturne-on-accent" : "text-nocturne-ink-muted hover:bg-nocturne-raised hover:text-nocturne-ink",
+            )}
+          >
+            {tab.label}
+            <span
+              className={cn(
+                "nocturne-mono rounded-nocturne-pill px-1.5 text-xs",
+                active ? "bg-nocturne-on-accent/20" : "bg-nocturne-raised text-nocturne-ink",
+              )}
+            >
+              {counts[tab.group]}
+            </span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+const ONBOARDING_GRID = "xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]";
+const EMPLOYEES_GRID = "xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]";
+
+/** The new-hire's name and email, linking to their record. */
+function PersonCell({ person, href }: { person: EmployeeSummary; href: string }) {
+  return (
+    <div className="min-w-0">
+      <Link
+        href={href}
+        className="rounded-sm text-[0.9375rem] font-bold text-nocturne-ink hover:text-nocturne-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent"
+      >
+        {person.name}
+      </Link>
+      <p className="mt-0.5 truncate text-[0.8125rem] text-nocturne-ink-muted">{person.email ?? "No email yet"}</p>
+    </div>
+  );
+}
+
+function RoleCell({ person }: { person: EmployeeSummary }) {
+  return (
+    <p className="text-[0.8125rem] text-nocturne-ink-muted">
+      <span className={cn(adminLabelClass, "mr-1.5 xl:hidden")}>Role</span>
+      {person.hiredFor ? <span className="text-nocturne-ink">{person.hiredFor.jobTitle}</span> : "Direct onboarding"}
+    </p>
+  );
+}
+
+/**
+ * /admin/onboarding and /admin/employees: the same table shell with the
+ * columns that matter for each. Onboarding shows progress and the link;
+ * Employees shows the submission reference and when they finished.
+ */
+export function AdminPeopleListNocturne({
+  group,
+  people,
+  counts,
+  now,
+  timeZone,
+}: {
+  group: PeopleGroup;
+  people: EmployeeSummary[];
+  counts: Record<PeopleGroup, number>;
+  now: number;
+  timeZone: string;
+}) {
+  const copy = PEOPLE_COPY[group];
+  const grid = group === "onboarding" ? ONBOARDING_GRID : EMPLOYEES_GRID;
+  const headers = group === "onboarding" ? ["New hire", "Role", "Progress", "Onboarding link", "Last activity"] : ["Employee", "Role", "Reference", "Completed"];
   return (
     <div>
-      <AdminPageHeading
-        eyebrow="People · Employees"
-        title="Employees"
-        lead="New hires and their onboarding progress. Anonymous sessions with no details yet aren't listed."
-      />
-      {employees.length === 0 ? (
-        <div className={cn(adminPanelClass, "mt-7 px-6 py-14 text-center")}>
-          <p className="font-nocturne-display text-xl font-semibold text-nocturne-ink">No employees yet</p>
-          <p className="mt-1.5 text-sm text-nocturne-ink-muted">Mark someone as hired from their application to start onboarding.</p>
+      <AdminPageHeading eyebrow={copy.eyebrow} title={copy.title} lead={copy.lead} />
+      <PeopleTabs current={group} counts={counts} />
+      {people.length === 0 ? (
+        <div className={cn(adminPanelClass, "mt-5 px-6 py-14 text-center")}>
+          <p className="font-nocturne-display text-xl font-semibold text-nocturne-ink">{copy.emptyTitle}</p>
+          <p className="mt-1.5 text-sm text-nocturne-ink-muted">{copy.emptyBody}</p>
         </div>
       ) : (
-        <div className="mt-7 xl:overflow-hidden xl:rounded-nocturne-card xl:border xl:border-nocturne-border xl:bg-nocturne-card xl:shadow-nocturne-rest">
+        <div className="mt-5 xl:overflow-hidden xl:rounded-nocturne-card xl:border xl:border-nocturne-border xl:bg-nocturne-card xl:shadow-nocturne-rest">
           <div
-            className={cn("hidden items-center gap-4 border-b border-nocturne-border bg-nocturne-table-head px-5 py-3 xl:grid", adminLabelClass, GRID)}
+            className={cn("hidden items-center gap-4 border-b border-nocturne-border bg-nocturne-table-head px-5 py-3 xl:grid", adminLabelClass, grid)}
             aria-hidden
           >
-            <span>Employee</span>
-            <span>Hired for</span>
-            <span>Onboarding</span>
-            <span>Status</span>
-            <span className="w-24" />
+            {headers.map((h) => (
+              <span key={h}>{h}</span>
+            ))}
+            <span className="w-20" />
           </div>
           <ul className="flex flex-col gap-3 xl:gap-0">
-            {employees.map((e) => (
-              <li
-                key={e.id}
-                className={cn(
-                  "grid grid-cols-1 gap-3 rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-4 py-4 shadow-nocturne-rest sm:px-5",
-                  "xl:items-center xl:gap-4 xl:rounded-none xl:border-0 xl:border-b xl:py-3.5 xl:shadow-none xl:last:border-b-0 xl:hover:bg-nocturne-raised",
-                  GRID,
-                )}
-              >
-                <div className="min-w-0">
-                  <Link
-                    href={`/admin/employees/${e.id}`}
-                    className="rounded-sm text-[0.9375rem] font-bold text-nocturne-ink hover:text-nocturne-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent"
-                  >
-                    {e.name}
-                  </Link>
-                  <p className="mt-0.5 truncate text-[0.8125rem] text-nocturne-ink-muted">
-                    {e.email ?? "No email yet"}
-                    {e.submissionReference && <span className="nocturne-mono"> · {e.submissionReference}</span>}
-                  </p>
-                </div>
-                <p className="text-[0.8125rem] text-nocturne-ink-muted">
-                  {e.hiredFor ? <span className="text-nocturne-ink">{e.hiredFor.jobTitle}</span> : "Direct onboarding"}
-                </p>
-                <CompletionBar percent={e.completionPercent} />
-                <div>
-                  <EmployeeStatusPill status={e.status} />
-                </div>
-                <Link
-                  href={`/admin/employees/${e.id}`}
-                  className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 w-24 justify-self-start px-3" })}
+            {people.map((p) => {
+              const href = `/admin/${group}/${p.id}`;
+              return (
+                <li
+                  key={p.id}
+                  className={cn(
+                    "grid grid-cols-1 gap-3 rounded-nocturne-card border border-nocturne-border bg-nocturne-card px-4 py-4 shadow-nocturne-rest sm:px-5",
+                    "xl:items-center xl:gap-4 xl:rounded-none xl:border-0 xl:border-b xl:py-3.5 xl:shadow-none xl:last:border-b-0 xl:hover:bg-nocturne-raised",
+                    grid,
+                  )}
                 >
-                  View
-                </Link>
-              </li>
-            ))}
+                  <PersonCell person={p} href={href} />
+                  <RoleCell person={p} />
+                  {group === "onboarding" ? (
+                    <>
+                      <div className="flex flex-col gap-1">
+                        <CompletionBar percent={p.completionPercent} />
+                        <span className="text-xs text-nocturne-ink-muted">{p.nextStep ? `Next: ${p.nextStep}` : "Ready to submit"}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Chip tone={LINK_LABEL[p.link.state].tone}>{LINK_LABEL[p.link.state].text}</Chip>
+                      </div>
+                      <p className="text-[0.8125rem] text-nocturne-ink-muted">
+                        <span className={cn(adminLabelClass, "mr-1.5 xl:hidden")}>Active</span>
+                        {formatRelativeTime(p.updatedAt, new Date(now))}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="nocturne-mono text-[0.8125rem] text-nocturne-ink">
+                        <span className={cn(adminLabelClass, "mr-1.5 font-nocturne-ui xl:hidden")}>Reference</span>
+                        {p.submissionReference ?? "—"}
+                      </p>
+                      <p className="text-[0.8125rem] text-nocturne-ink-muted">
+                        <span className={cn(adminLabelClass, "mr-1.5 xl:hidden")}>Completed</span>
+                        {p.submittedAt ? formatDateLabel(new Date(p.submittedAt), timeZone) : "—"}
+                      </p>
+                    </>
+                  )}
+                  <Link
+                    href={href}
+                    className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 w-20 justify-self-start px-3" })}
+                  >
+                    View
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -206,7 +328,7 @@ function GovernmentIdsPanel({ employee }: { employee: EmployeeDetail }) {
   );
 }
 
-function OnboardingLinkPanel({ employee }: { employee: EmployeeDetail }) {
+function OnboardingLinkPanel({ employee, timeZone }: { employee: EmployeeDetail; timeZone: string }) {
   const link = useOnboardingLinkReissue(employee.id);
   const invite = employee.latestInvite;
   if (employee.status === "submitted") return null;
@@ -215,10 +337,10 @@ function OnboardingLinkPanel({ employee }: { employee: EmployeeDetail }) {
       <p className="text-sm text-nocturne-ink-muted">
         {invite
           ? invite.usedAt
-            ? `Opened on ${formatDate(invite.usedAt)}.`
-            : new Date(invite.expiresAt) < new Date()
-              ? `The last link expired on ${formatDate(invite.expiresAt)}.`
-              : `A link was sent and works until ${formatDate(invite.expiresAt)}.`
+            ? `Opened on ${formatDate(invite.usedAt, timeZone)}.`
+            : employee.link.state === "expired"
+              ? `The last link expired on ${formatDate(invite.expiresAt, timeZone)}.`
+              : `A link was sent and works until ${formatDate(invite.expiresAt, timeZone)}.`
           : "No onboarding link has been sent."}
       </p>
       {link.url && (
@@ -244,7 +366,8 @@ function OnboardingLinkPanel({ employee }: { employee: EmployeeDetail }) {
   );
 }
 
-export function AdminEmployeeDetailNocturne({ employee }: { employee: EmployeeDetail }) {
+export function AdminEmployeeDetailNocturne({ employee, timeZone }: { employee: EmployeeDetail; timeZone: string }) {
+  const group: PeopleGroup = employee.status === "submitted" ? "employees" : "onboarding";
   const pi = employee.personalInfo;
   const refs = employee.references;
   const ec = employee.emergencyContact;
@@ -252,14 +375,14 @@ export function AdminEmployeeDetailNocturne({ employee }: { employee: EmployeeDe
   return (
     <div>
       <Link
-        href="/admin/employees"
+        href={`/admin/${group}`}
         className="mb-4 inline-flex h-8 items-center gap-1.5 rounded-nocturne-pill border border-nocturne-border bg-nocturne-card pr-3.5 pl-2.5 text-[0.8125rem] font-semibold text-nocturne-ink-muted shadow-nocturne-rest transition-colors hover:border-nocturne-border-strong hover:text-nocturne-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nocturne-accent"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        Employees
+        {group === "employees" ? "Employees" : "Onboarding"}
       </Link>
       <AdminPageHeading
-        eyebrow="People · Employee"
+        eyebrow={group === "employees" ? "People · Employee" : "People · New hire"}
         title={employee.name}
         lead={
           <>
@@ -345,10 +468,10 @@ export function AdminEmployeeDetailNocturne({ employee }: { employee: EmployeeDe
               ))}
             </ol>
             {employee.submittedAt && (
-              <p className="mt-3 text-xs text-nocturne-ink-muted">Submitted on {formatDate(employee.submittedAt)}</p>
+              <p className="mt-3 text-xs text-nocturne-ink-muted">Submitted on {formatDate(employee.submittedAt, timeZone)}</p>
             )}
           </Panel>
-          <OnboardingLinkPanel employee={employee} />
+          <OnboardingLinkPanel employee={employee} timeZone={timeZone} />
           <Panel title="Documents">
             {employee.documents.length === 0 ? (
               <p className="text-sm text-nocturne-ink-muted">Nothing uploaded yet.</p>
