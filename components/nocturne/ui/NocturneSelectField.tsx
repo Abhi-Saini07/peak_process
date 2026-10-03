@@ -38,7 +38,7 @@ export const NocturneSelectField = forwardRef<HTMLSelectElement, NocturneSelectF
             className,
           )}
           aria-invalid={Boolean(error)}
-          defaultValue=""
+          {...(props.value === undefined && props.defaultValue === undefined ? { defaultValue: "" } : null)}
           {...props}
         >
           <option value="" disabled className="text-nocturne-ink-faint">

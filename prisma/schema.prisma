@@ -274,11 +274,15 @@ model AdminUser {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  jobsCreated    Job[]
-  statusChanges  ApplicationStatusHistory[]
-  notes          ApplicationNote[]
-  auditLogs      AdminAuditLog[]
-  invitesCreated OnboardingInvite[]
+  jobsCreated          Job[]
+  statusChanges        ApplicationStatusHistory[]
+  notes                ApplicationNote[]
+  auditLogs            AdminAuditLog[]
+  invitesCreated       OnboardingInvite[]
+  interviewsGiven      Interview[]                @relation("InterviewInterviewer")
+  interviewsCreated    Interview[]                @relation("InterviewCreator")
+  scheduleInvitesGiven ScheduleInvite[]           @relation("ScheduleInviteInterviewer")
+  scheduleInvitesSent  ScheduleInvite[]           @relation("ScheduleInviteCreator")
 
   @@map("admin_users")
 }
@@ -382,12 +386,14 @@ model JobApplication {
   employee         Employee?         @relation("ApplicationEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
   sourceOfEmployee Employee?         @relation("EmployeeSourceApplication")
 
-  job           Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  candidate     Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  documents     ApplicationDocument[]
-  statusHistory ApplicationStatusHistory[]
-  notes         ApplicationNote[]
-  emailLogs     EmailLog[]
+  job             Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate       Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  documents       ApplicationDocument[]
+  statusHistory   ApplicationStatusHistory[]
+  notes           ApplicationNote[]
+  emailLogs       EmailLog[]
+  interviews      Interview[]
+  scheduleInvites ScheduleInvite[]
 
   @@unique([jobId, candidateId], map: "uq_job_applications_job_candidate")
   @@index([jobId], map: "idx_job_applications_job")
@@ -520,4 +526,93 @@ model EmailLog {
   @@index([applicationId, createdAt], map: "idx_email_log_application_created")
   @@index([employeeId], map: "idx_email_log_employee")
   @@map("email_log")
+}
+
+enum InterviewMode {
+  onsite
+  video
+  phone
+}
+
+enum InterviewStatus {
+  scheduled
+  completed
+  cancelled
+  no_show
+}
+
+enum ScheduleInviteStatus {
+  pending
+  booked
+  cancelled
+  expired
+}
+
+/// One interview slot for an application. Booked by HR (manual form) or by
+/// the candidate through a ScheduleInvite. Cancelled interviews are kept as
+/// history. A partial unique index (raw SQL, uq_interviews_interviewer_slot)
+/// stops an interviewer holding two "scheduled" interviews at the same start
+/// time; CHECK chk_interviews_duration keeps durations between 15 and 240.
+model Interview {
+  id                 String          @id @default(uuid()) @db.Char(36)
+  applicationId      String          @map("application_id") @db.Char(36)
+  scheduledAt        DateTime        @map("scheduled_at") @db.Timestamptz(3)
+  durationMinutes    Int             @map("duration_minutes") @db.SmallInt
+  mode               InterviewMode
+  interviewerAdminId String          @map("interviewer_admin_id") @db.Char(36)
+  meetingUrl         String?         @map("meeting_url") @db.VarChar(500)
+  location           String?         @db.VarChar(255)
+  status             InterviewStatus @default(scheduled)
+  notes              String?         @db.Text
+  createdByAdminId   String?         @map("created_by_admin_id") @db.Char(36)
+  /// Set when the candidate booked it through a scheduling link.
+  scheduleInviteId   String?         @map("schedule_invite_id") @db.Char(36)
+  cancelledAt        DateTime?       @map("cancelled_at") @db.Timestamptz(3)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  application    JobApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  interviewer    AdminUser       @relation("InterviewInterviewer", fields: [interviewerAdminId], references: [id], onDelete: Restrict)
+  createdBy      AdminUser?      @relation("InterviewCreator", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  scheduleInvite ScheduleInvite? @relation("InterviewFromInvite", fields: [scheduleInviteId], references: [id], onDelete: SetNull)
+  currentFor     ScheduleInvite? @relation("ScheduleInviteCurrentInterview")
+
+  @@index([applicationId], map: "idx_interviews_application")
+  @@index([interviewerAdminId, scheduledAt], map: "idx_interviews_interviewer_time")
+  @@index([scheduledAt], map: "idx_interviews_scheduled_at")
+  @@map("interviews")
+}
+
+/// A "pick your own time" link (/schedule/[token]) for one application. Only
+/// the SHA-256 of the token is stored. Booking claims the invite atomically
+/// (pending -> booked) in the same transaction that creates the Interview;
+/// rescheduling cancels that interview and sets the invite back to pending.
+/// CHECK chk_schedule_invites_window keeps window_end after window_start.
+model ScheduleInvite {
+  id                 String               @id @default(uuid()) @db.Char(36)
+  applicationId      String               @map("application_id") @db.Char(36)
+  tokenHash          String               @unique(map: "uq_schedule_invites_token_hash") @map("token_hash") @db.Char(64)
+  interviewerAdminId String               @map("interviewer_admin_id") @db.Char(36)
+  durationMinutes    Int                  @map("duration_minutes") @db.SmallInt
+  mode               InterviewMode
+  meetingUrl         String?              @map("meeting_url") @db.VarChar(500)
+  location           String?              @db.VarChar(255)
+  windowStart        DateTime             @map("window_start") @db.Timestamptz(3)
+  windowEnd          DateTime             @map("window_end") @db.Timestamptz(3)
+  status             ScheduleInviteStatus @default(pending)
+  /// The interview currently booked through this link.
+  interviewId        String?              @unique(map: "uq_schedule_invites_interview") @map("interview_id") @db.Char(36)
+  createdByAdminId   String?              @map("created_by_admin_id") @db.Char(36)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  interviewer AdminUser      @relation("ScheduleInviteInterviewer", fields: [interviewerAdminId], references: [id], onDelete: Restrict)
+  createdBy   AdminUser?     @relation("ScheduleInviteCreator", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  interview   Interview?     @relation("ScheduleInviteCurrentInterview", fields: [interviewId], references: [id], onDelete: SetNull)
+  interviews  Interview[]    @relation("InterviewFromInvite")
+
+  @@index([applicationId], map: "idx_schedule_invites_application")
+  @@index([status, windowEnd], map: "idx_schedule_invites_status_window")
+  @@map("schedule_invites")
 }

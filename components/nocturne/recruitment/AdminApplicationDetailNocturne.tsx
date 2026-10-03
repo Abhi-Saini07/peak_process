@@ -17,6 +17,12 @@ import {
   OfferDialogNocturne,
 } from "@/components/nocturne/recruitment/ApplicationOfferNocturne";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
+import {
+  ApplicationInterviewsNocturne,
+  type InterviewerOption,
+} from "@/components/nocturne/recruitment/ApplicationInterviewsNocturne";
+import type { InterviewRow, ScheduleInviteRow } from "@/lib/server/interviewRepository";
+import { isTerminalStage } from "@/lib/recruitment/stages";
 import { formatBytes } from "@/lib/utils/formatBytes";
 import {
   AdminPageHeading,
@@ -54,7 +60,23 @@ function PanelTitle({ children }: { children: string }) {
   return <h2 className={adminCardTitleClass}>{children}</h2>;
 }
 
-export function AdminApplicationDetailNocturne({ application, now }: { application: ApplicationDetail; now: number }) {
+export type ApplicationScheduling = {
+  interviews: InterviewRow[];
+  invites: ScheduleInviteRow[];
+  interviewers: InterviewerOption[];
+  currentAdminId: string;
+  timeZone: string;
+};
+
+export function AdminApplicationDetailNocturne({
+  application,
+  now,
+  scheduling,
+}: {
+  application: ApplicationDetail;
+  now: number;
+  scheduling: ApplicationScheduling;
+}) {
   const { setStatus, isUpdating, error, clearError } = useApplicationStatusActions(application.id);
   const nextStatuses = availableNextStatuses(application.status);
   const activity = useApplicationActivity(application);
@@ -266,6 +288,13 @@ export function AdminApplicationDetailNocturne({ application, now }: { applicati
             )}
           </section>
 
+          <ApplicationInterviewsNocturne
+            applicationId={application.id}
+            candidateName={application.candidateName}
+            canSchedule={!isTerminalStage(application.status)}
+            now={now}
+            {...scheduling}
+          />
           <ApplicationOfferPanelNocturne application={application} form={offerForm} hire={hire} now={now} />
         </aside>
       </div>

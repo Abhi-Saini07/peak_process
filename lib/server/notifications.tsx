@@ -11,6 +11,10 @@ import { RejectionEmail } from "@/lib/email/templates/RejectionEmail";
 import { OfferEmail } from "@/lib/email/templates/OfferEmail";
 import { OnboardingInviteEmail } from "@/lib/email/templates/OnboardingInviteEmail";
 import { OnboardingSubmittedEmail } from "@/lib/email/templates/OnboardingSubmittedEmail";
+import { InterviewEmail, type InterviewEmailKind } from "@/lib/email/templates/InterviewEmail";
+import { SchedulingInviteEmail } from "@/lib/email/templates/SchedulingInviteEmail";
+import { interviewModeLabel } from "@/lib/recruitment/interviews";
+import { formatDayLabel, formatInTimeZone, officeTimeZone } from "@/lib/recruitment/timezones";
 
 /**
  * Transactional emails for the recruitment and onboarding flows. Every
@@ -199,6 +203,100 @@ export function notifyOnboardingSubmitted(employeeId: string): Promise<void> {
           reference={employee.submissionReference ?? "—"}
           jobTitle={employee.sourceApplication?.job.title ?? null}
           link={absoluteUrl(`/admin/employees/${employeeId}`)}
+        />
+      ),
+    });
+  });
+}
+
+/**
+ * Interview booked / moved / cancelled: one email to the candidate and one to
+ * the interviewer, times in the office timezone. `scheduleToken` is the
+ * candidate's link (only known when they booked through it): it adds the
+ * "reschedule or cancel" and .ics links to the candidate's email.
+ */
+export function notifyInterview(
+  interviewId: string,
+  kind: InterviewEmailKind,
+  options: { scheduleToken?: string | null; notifyCandidate?: boolean; notifyInterviewer?: boolean } = {},
+): Promise<void> {
+  return safely(`interview_${kind}`, async () => {
+    const interview = await prisma.interview.findUnique({
+      where: { id: interviewId },
+      include: {
+        interviewer: { select: { fullName: true, email: true } },
+        application: { include: { candidate: true, job: { select: { title: true } } } },
+      },
+    });
+    if (!interview) return;
+    const { candidate, job } = interview.application;
+    const candidateName = `${candidate.firstName} ${candidate.lastName}`.trim();
+    const common = {
+      kind,
+      candidateName,
+      jobTitle: job.title,
+      when: formatInTimeZone(interview.scheduledAt, officeTimeZone()),
+      durationMinutes: interview.durationMinutes,
+      modeLabel: interviewModeLabel(interview.mode),
+      meetingUrl: interview.meetingUrl,
+      location: interview.location,
+    };
+    const template: EmailTemplate = `interview_${kind}`;
+    const token = options.scheduleToken;
+    if (options.notifyCandidate !== false) {
+      await deliver({
+        template,
+        applicationId: interview.applicationId,
+        to: candidate.email,
+        subject: kind === "cancelled" ? `Interview cancelled: ${job.title}` : `Your ${job.title} interview: ${common.when}`,
+        react: (
+          <InterviewEmail
+            {...common}
+            audience="candidate"
+            recipientName={candidate.firstName}
+            manageUrl={token ? absoluteUrl(`/schedule/${token}`) : null}
+            icsUrl={token ? absoluteUrl(`/api/schedule/${token}/ics`) : null}
+          />
+        ),
+      });
+    }
+    if (options.notifyInterviewer !== false) {
+      await deliver({
+        template,
+        applicationId: interview.applicationId,
+        to: interview.interviewer.email,
+        subject: `Interview ${kind}: ${candidateName} (${job.title})`,
+        react: <InterviewEmail {...common} audience="interviewer" recipientName={interview.interviewer.fullName.split(" ")[0] || "there"} />,
+      });
+    }
+  });
+}
+
+/** Emails the candidate their self-scheduling link. The raw token exists only here and in the email. */
+export function notifySchedulingInvite(inviteId: string, token: string): Promise<void> {
+  return safely("scheduling_invite", async () => {
+    const invite = await prisma.scheduleInvite.findUnique({
+      where: { id: inviteId },
+      include: { application: { include: { candidate: true, job: { select: { title: true } } } } },
+    });
+    if (!invite) return;
+    const { candidate, job } = invite.application;
+    const tz = officeTimeZone();
+    const day = (d: Date) => formatDayLabel(d, tz, "short");
+    const lastDay = new Date(invite.windowEnd.getTime() - 1);
+    await deliver({
+      template: "scheduling_invite",
+      applicationId: invite.applicationId,
+      to: candidate.email,
+      subject: `Choose a time for your ${job.title} interview`,
+      react: (
+        <SchedulingInviteEmail
+          firstName={candidate.firstName}
+          jobTitle={job.title}
+          durationMinutes={invite.durationMinutes}
+          modeLabel={interviewModeLabel(invite.mode)}
+          link={absoluteUrl(`/schedule/${token}`)}
+          windowLabel={`from ${day(invite.windowStart)} to ${day(lastDay)}`}
         />
       ),
     });

@@ -4,21 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import {
-  Briefcase,
-  Gauge,
-  Users,
-  Check,
-  ChevronsLeft,
-  ChevronsRight,
-  ClipboardList,
-  ExternalLink,
-  LayoutDashboard,
-  Menu,
-  PlusCircle,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { Briefcase, CalendarDays, Check, ChevronsLeft, ChevronsRight, ClipboardList, ExternalLink, Gauge, LayoutDashboard, Menu, PlusCircle, Users, X, type LucideIcon } from "lucide-react";
 import { PeakMark } from "@/components/Logo";
 import { NocturneThemeToggle } from "@/components/nocturne/NocturneThemeToggle";
 import { setSidebarPreference, useSidebarPreference } from "@/lib/design/sidebarPreference";
@@ -119,6 +105,7 @@ function useNavSections(): NavSection[] {
           isActive: (p) => (p.startsWith("/admin/jobs") || p.startsWith("/admin/applications")) && p !== "/admin/jobs/new",
         },
         { label: "Post a job", href: "/admin/jobs/new", icon: PlusCircle, isActive: (p) => p === "/admin/jobs/new" },
+        { label: "Interviews", href: "/admin/interviews", icon: CalendarDays, isActive: (p) => p.startsWith("/admin/interviews") },
         { label: "Employees", href: "/admin/employees", icon: Users, isActive: (p) => p.startsWith("/admin/employees") },
       ],
     },

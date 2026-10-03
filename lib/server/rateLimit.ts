@@ -56,3 +56,16 @@ export function clientIp(headers: Headers): string {
 
 /** POST /api/jobs/[id]/apply: 5 submissions per IP per 10 minutes. */
 export const applyRateLimiter = createRateLimiter({ limit: 5, windowMs: 10 * 60 * 1000 });
+
+/** Public /api/schedule/[token]/*: 30 requests per IP and 10 per link, per 10 minutes. */
+export const scheduleIpRateLimiter = createRateLimiter({ limit: 30, windowMs: 10 * 60 * 1000 });
+export const scheduleTokenRateLimiter = createRateLimiter({ limit: 10, windowMs: 10 * 60 * 1000 });
+
+/** Checks both schedule limits; returns the wait in seconds when either is exceeded. */
+export function checkScheduleRateLimit(headers: Headers, token: string): { ok: true } | { ok: false; retryAfterSeconds: number } {
+  const byIp = scheduleIpRateLimiter.check(`ip:${clientIp(headers)}`);
+  if (!byIp.ok) return byIp;
+  const byToken = scheduleTokenRateLimiter.check(`token:${token.slice(0, 100)}`);
+  if (!byToken.ok) return byToken;
+  return { ok: true };
+}

@@ -11,6 +11,9 @@ import type { JobHealth, OfferInFlight, StuckApplication, Trend } from "@/lib/re
 import { formatMoney } from "@/lib/recruitment/offers";
 import { OfferAgeBadge } from "@/components/nocturne/recruitment/ApplicationOfferNocturne";
 import type { DashboardKpis, NewToReviewItem } from "@/lib/server/dashboardRepository";
+import type { InterviewRow } from "@/lib/server/interviewRepository";
+import { interviewModeLabel } from "@/lib/recruitment/interviews";
+import { formatShortDateTime } from "@/lib/recruitment/timezones";
 import {
   ScreeningFlagBadge,
   adminCardTitleClass,
@@ -261,6 +264,47 @@ export function OffersInFlightWidget({ offers }: { offers: OfferInFlight[] }) {
                   </span>
                 </span>
                 <OfferAgeBadge age={o.age} className="shrink-0" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Widget>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Next interviews                                                    */
+/* ------------------------------------------------------------------ */
+
+export function NextInterviewWidget({ interviews, total, timeZone }: { interviews: InterviewRow[]; total: number; timeZone: string }) {
+  return (
+    <Widget
+      title="Next interviews"
+      description={total === 0 ? undefined : `${total} upcoming`}
+      action={total > 0 ? <MoreLink href="/admin/interviews">All interviews</MoreLink> : undefined}
+    >
+      {interviews.length === 0 ? (
+        <EmptyState title="Nothing booked" body="Interviews you schedule, or candidates book through a link, show up here." />
+      ) : (
+        <ul className="border-t border-nocturne-border">
+          {interviews.map((i, index) => (
+            <li key={i.id} className="border-b border-nocturne-border last:border-b-0">
+              <Link href={`/admin/applications/${i.applicationId}`} className={rowLinkClass}>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-nocturne-ink">{i.candidateName}</span>
+                  <span className="block text-xs text-nocturne-ink-muted sm:truncate">
+                    {i.jobTitle} · {interviewModeLabel(i.mode)} · {i.interviewerName}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-nocturne-pill px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
+                    index === 0 ? "bg-nocturne-accent-tint text-nocturne-accent-text" : "bg-nocturne-raised text-nocturne-ink-muted",
+                  )}
+                >
+                  {formatShortDateTime(new Date(i.scheduledAt), timeZone)}
+                </span>
               </Link>
             </li>
           ))}

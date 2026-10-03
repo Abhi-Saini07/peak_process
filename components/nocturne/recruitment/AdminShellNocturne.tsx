@@ -164,6 +164,7 @@ function crumbsFor(pathname: string): Crumb[] {
     return [root, postings, { label: "Edit job" }];
   }
   if (parts[1] === "applications") return [root, postings, { label: "Application" }];
+  if (parts[1] === "interviews") return [root, { label: "Interviews" }];
   if (parts[1] === "employees") {
     const people: Crumb = { label: "Employees", href: "/admin/employees" };
     return parts.length === 2 ? [{ label: "People" }, { label: "Employees" }] : [{ label: "People" }, people, { label: "Employee" }];

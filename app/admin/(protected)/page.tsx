@@ -9,6 +9,8 @@ import {
   getNewToReview,
   getOffersInFlight,
 } from "@/lib/server/dashboardRepository";
+import { getUpcomingInterviews } from "@/lib/server/interviewRepository";
+import { officeTimeZone } from "@/lib/recruitment/timezones";
 import { AdminPageHeading } from "@/components/nocturne/recruitment/AdminShellNocturne";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import {
@@ -18,6 +20,7 @@ import {
   JobHealthWidget,
   NeedsAttentionWidget,
   NewToReviewWidget,
+  NextInterviewWidget,
   OffersInFlightWidget,
 } from "@/components/nocturne/recruitment/AdminDashboardNocturne";
 
@@ -39,6 +42,11 @@ async function NeedsAttention({ now }: { now: number }) {
 
 async function OffersInFlight({ now }: { now: number }) {
   return <OffersInFlightWidget offers={await getOffersInFlight(now)} />;
+}
+
+async function NextInterviews({ now }: { now: number }) {
+  const upcoming = (await getUpcomingInterviews(new Date(now))).filter((i) => new Date(i.scheduledAt).getTime() >= now);
+  return <NextInterviewWidget interviews={upcoming.slice(0, 3)} total={upcoming.length} timeZone={officeTimeZone()} />;
 }
 
 async function JobHealth({ now }: { now: number }) {
@@ -72,9 +80,14 @@ export default function AdminDashboardPage() {
             <NeedsAttention now={now} />
           </Suspense>
         </div>
-        <Suspense fallback={<DashboardListSkeleton title="Offers in flight" rows={2} />}>
-          <OffersInFlight now={now} />
-        </Suspense>
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+          <Suspense fallback={<DashboardListSkeleton title="Next interviews" rows={2} />}>
+            <NextInterviews now={now} />
+          </Suspense>
+          <Suspense fallback={<DashboardListSkeleton title="Offers in flight" rows={2} />}>
+            <OffersInFlight now={now} />
+          </Suspense>
+        </div>
         <Suspense fallback={<DashboardListSkeleton title="Job health" rows={3} />}>
           <JobHealth now={now} />
         </Suspense>
