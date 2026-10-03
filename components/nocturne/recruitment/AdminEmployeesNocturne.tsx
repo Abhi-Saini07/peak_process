@@ -195,7 +195,7 @@ export function AdminPeopleListNocturne({
             {headers.map((h) => (
               <span key={h}>{h}</span>
             ))}
-            <span className="w-20" />
+            <span className="w-36" />
           </div>
           <ul className="flex flex-col gap-3 xl:gap-0">
             {people.map((p) => {
@@ -237,12 +237,19 @@ export function AdminPeopleListNocturne({
                       </p>
                     </>
                   )}
-                  <Link
-                    href={href}
-                    className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 w-20 justify-self-start px-3" })}
-                  >
-                    View
-                  </Link>
+                  <div className="flex gap-2 justify-self-start">
+                    <Link href={href} className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 px-3" })}>
+                      View
+                    </Link>
+                    <Link
+                      href={`${href}/edit`}
+                      aria-label={`Edit ${p.name}`}
+                      className={nocturneButtonVariants({ variant: "secondary", size: "sm", className: "h-8.5 px-3" })}
+                    >
+                      <Pencil className="size-3.5" aria-hidden />
+                      Edit
+                    </Link>
+                  </div>
                 </li>
               );
             })}
