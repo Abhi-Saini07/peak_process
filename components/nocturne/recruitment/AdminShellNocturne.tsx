@@ -168,7 +168,9 @@ function crumbsFor(pathname: string): Crumb[] {
   if (parts[1] === "employees" || parts[1] === "onboarding") {
     const list: Crumb = parts[1] === "employees" ? { label: "Employees", href: "/admin/employees" } : { label: "Onboarding", href: "/admin/onboarding" };
     const person = parts[1] === "employees" ? "Employee" : "New hire";
-    return parts.length === 2 ? [{ label: "People" }, { label: list.label }] : [{ label: "People" }, list, { label: person }];
+    if (parts.length === 2) return [{ label: "People" }, { label: list.label }];
+    if (parts[3] === "edit") return [{ label: "People" }, list, { label: person, href: `/admin/${parts[1]}/${parts[2]}` }, { label: "Edit" }];
+    return [{ label: "People" }, list, { label: person }];
   }
   if (parts.length === 1) return [root, { label: "Dashboard" }];
   return [root];

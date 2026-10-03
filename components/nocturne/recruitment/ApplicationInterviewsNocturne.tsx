@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, CalendarPlus, Copy, Link2, MapPin, Phone, Video } from "lucide-react";
+import { CalendarClock, CalendarPlus, Copy, Link2, MapPin, Pencil, Phone, Video } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import {
   DURATION_OPTIONS,
@@ -54,12 +54,14 @@ export function InterviewItem({
   actions,
   showCandidate = false,
   now,
+  onEdit,
 }: {
   interview: InterviewRow;
   timeZone: string;
   actions: InterviewRowActions;
   showCandidate?: boolean;
   now: number;
+  onEdit?: (interview: InterviewRow) => void;
 }) {
   const Icon = MODE_ICON[interview.mode as InterviewMode] ?? CalendarClock;
   const busy = actions.busyId === interview.id;
@@ -119,6 +121,12 @@ export function InterviewItem({
                   No-show
                 </NocturneButton>
               </>
+            )}
+            {onEdit && !started && (
+              <NocturneButton size="sm" variant="secondary" disabled={busy} onClick={() => onEdit(interview)}>
+                <Pencil className="size-3.5" aria-hidden />
+                Edit
+              </NocturneButton>
             )}
             <NocturneButton size="sm" variant="secondary" disabled={busy} onClick={() => actions.askCancel(interview.id)}>
               Cancel
@@ -242,9 +250,9 @@ function FormError({ message }: { message?: string }) {
   );
 }
 
-function ManualInterviewDialog({ form, interviewers, candidateName }: { form: ManualInterviewForm; interviewers: InterviewerOption[]; candidateName: string }) {
+export function ManualInterviewDialog({ form, interviewers, candidateName }: { form: ManualInterviewForm; interviewers: InterviewerOption[]; candidateName: string }) {
   return (
-    <NocturneDialog open={form.isOpen} onClose={form.close} eyebrow="Schedule interview" title={candidateName} className="max-w-lg">
+    <NocturneDialog open={form.isOpen} onClose={form.close} eyebrow={form.isEditing ? "Edit interview" : "Schedule interview"} title={candidateName} className="max-w-lg">
       {() => (
         <form noValidate onSubmit={form.submit} className="flex flex-col gap-1">
           <NocturneTextField
@@ -273,7 +281,11 @@ function ManualInterviewDialog({ form, interviewers, candidateName }: { form: Ma
             id="interview-notify-candidate"
             checked={form.values.notifyCandidate}
             onChange={(e) => form.set("notifyCandidate", e.target.checked)}
-            label="Email the candidate (the interviewer is always emailed)"
+            label={
+              form.isEditing
+                ? "Email the candidate if the time or place changes (the interviewer is always emailed)"
+                : "Email the candidate (the interviewer is always emailed)"
+            }
           />
           <FormError message={form.errors.form} />
           <div className="mt-2 flex flex-wrap justify-end gap-2">
@@ -282,7 +294,7 @@ function ManualInterviewDialog({ form, interviewers, candidateName }: { form: Ma
             </NocturneButton>
             <NocturneButton type="submit" size="sm" isLoading={form.isSubmitting}>
               <CalendarPlus className="size-4" aria-hidden />
-              Schedule
+              {form.isEditing ? "Save changes" : "Schedule"}
             </NocturneButton>
           </div>
         </form>
@@ -407,7 +419,7 @@ export function ApplicationInterviewsNocturne({
       {interviews.length > 0 ? (
         <ul className="flex flex-col gap-2">
           {interviews.map((i) => (
-            <InterviewItem key={i.id} interview={i} timeZone={timeZone} actions={actions} now={now} />
+            <InterviewItem key={i.id} interview={i} timeZone={timeZone} actions={actions} now={now} onEdit={manual.openForEdit} />
           ))}
         </ul>
       ) : (

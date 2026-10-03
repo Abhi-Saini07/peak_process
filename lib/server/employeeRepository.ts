@@ -1,10 +1,24 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { decryptField } from "@/lib/security/encryption";
+import { decryptField, encryptField } from "@/lib/security/encryption";
 import { computeCompletionPercent, computeStepStatuses } from "@/lib/onboarding/completion";
 import { STEP_META as stepRegistry } from "@/lib/onboarding/steps.meta";
-import { EMPLOYEE_WITH_RELATIONS, mapSnapshot } from "@/lib/server/onboardingRepository";
+import {
+  EMPLOYEE_WITH_RELATIONS,
+  genderToDb,
+  mapSnapshot,
+  saveEmergencyContact,
+  saveHealthInsurance,
+  saveReferences,
+} from "@/lib/server/onboardingRepository";
+import { parseDateOnly } from "@/lib/server/dateOnly";
+import {
+  EMPLOYEE_EDIT_SCHEMAS,
+  type EmployeeEditSection,
+  type GovernmentIdsEditInput,
+  type PersonalEditInput,
+} from "@/lib/onboarding/employeeEdit";
 import { logAdminAction } from "@/lib/server/auditLog";
 import { maskGovernmentId } from "@/lib/onboarding/masking";
 import type { EmployeeDetail, EmployeeSummary, GovernmentIds, PeopleGroup } from "@/types/employees";
@@ -165,5 +179,77 @@ export async function revealGovernmentIds(employeeId: string, adminId: string): 
       tx,
     );
     return ids;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// HR edits
+// ---------------------------------------------------------------------------
+
+export type EmployeeEditResult = { ok: true } | { error: string; code: "not_found" | "invalid" };
+
+/**
+ * Saves one section of a person's record, validated with the same rules as
+ * the edit form, together with an audit row naming the section (never the
+ * values) in one short transaction.
+ */
+export async function updateEmployeeSection(
+  employeeId: string,
+  section: EmployeeEditSection,
+  raw: unknown,
+  adminId: string,
+): Promise<EmployeeEditResult> {
+  const parsed = EMPLOYEE_EDIT_SCHEMAS[section].safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the details.", code: "invalid" };
+  const data = parsed.data;
+
+  return prisma.$transaction(async (tx) => {
+    const exists = await tx.employee.findUnique({ where: { id: employeeId }, select: { id: true } });
+    if (!exists) return { error: "Employee not found", code: "not_found" } as const;
+
+    let changedFields: string[] = [];
+    if (section === "personal") {
+      const d = data as PersonalEditInput;
+      const values = {
+        firstName: d.basicInfo.firstName,
+        lastName: d.basicInfo.lastName,
+        dateOfBirth: d.basicInfo.dateOfBirth ? parseDateOnly(d.basicInfo.dateOfBirth) : null,
+        gender: genderToDb(d.basicInfo.gender),
+        personalEmail: d.contactInfo.personalEmail,
+        phone: d.contactInfo.phone || null,
+        homeAddress: d.address.homeAddress || null,
+      };
+      await tx.personalInformation.upsert({ where: { employeeId }, create: { employeeId, ...values }, update: values });
+      await tx.employee.update({ where: { id: employeeId }, data: { fullName: `${values.firstName} ${values.lastName}` } });
+    } else if (section === "governmentIds") {
+      const d = data as GovernmentIdsEditInput;
+      const values: Pick<Prisma.PersonalInformationUncheckedCreateInput, "aadhaarNumberEnc" | "panNumberEnc" | "uanNumberEnc"> = {};
+      if (d.aadhaar) values.aadhaarNumberEnc = encryptField(d.aadhaar);
+      if (d.pan) values.panNumberEnc = encryptField(d.pan);
+      if (d.uan) values.uanNumberEnc = encryptField(d.uan);
+      changedFields = Object.entries({ aadhaar: d.aadhaar, pan: d.pan, uan: d.uan }).filter(([, v]) => v).map(([k]) => k);
+      await tx.personalInformation.upsert({
+        where: { employeeId },
+        create: { employeeId, ...values },
+        update: values,
+      });
+      await tx.employee.update({ where: { id: employeeId }, data: { updatedAt: new Date() } });
+    } else {
+      const save = { references: saveReferences, emergencyContact: saveEmergencyContact, healthInsurance: saveHealthInsurance }[section];
+      await save(employeeId, data, tx);
+      await tx.employee.update({ where: { id: employeeId }, data: { updatedAt: new Date() } });
+    }
+
+    await logAdminAction(
+      {
+        actorAdminId: adminId,
+        action: section === "governmentIds" ? "employee.update_ids" : "employee.update",
+        entity: "employee",
+        entityId: employeeId,
+        meta: section === "governmentIds" ? { section, fields: changedFields } : { section },
+      },
+      tx,
+    );
+    return { ok: true } as const;
   });
 }

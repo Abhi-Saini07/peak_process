@@ -371,6 +371,7 @@ export type InterviewRow = {
   mode: string;
   status: InterviewStatus;
   interviewerName: string;
+  interviewerAdminId: string;
   meetingUrl: string | null;
   location: string | null;
   notes: string | null;
@@ -409,6 +410,7 @@ function toInterviewRow(i: Prisma.InterviewGetPayload<typeof INTERVIEW_ROW>): In
     mode: i.mode,
     status: i.status,
     interviewerName: i.interviewer.fullName,
+    interviewerAdminId: i.interviewerAdminId,
     meetingUrl: i.meetingUrl,
     location: i.location,
     notes: i.notes,
@@ -466,3 +468,90 @@ export async function getPendingScheduleInvites(now = new Date(), where: Prisma.
   });
   return rows.map(toInviteRow);
 }
+
+/**
+ * HR edits a scheduled interview (time, length, format, interviewer, link,
+ * place, notes). The same overlap check and unique index as booking apply,
+ * ignoring this interview itself. Returns what changed so the route can send
+ * the right emails.
+ */
+export async function updateInterview(
+  id: string,
+  input: ManualInterviewInput,
+  now = new Date(),
+): Promise<
+  InterviewResult<{ applicationId: string; timeOrPlaceChanged: boolean; previousInterviewerId: string | null; previous: InterviewSnapshot }>
+> {
+  const current = await prisma.interview.findUnique({ where: { id } });
+  if (!current) return { error: "Interview not found", code: "not_found" };
+  if (current.status !== "scheduled") return { error: "Only scheduled interviews can be edited.", code: "conflict" };
+  const interviewer = await prisma.adminUser.findUnique({ where: { id: input.interviewerAdminId }, select: { id: true } });
+  if (!interviewer) return { error: "Choose an interviewer from the list.", code: "invalid" };
+
+  const start = new Date(input.scheduledAt);
+  if (start.getTime() <= now.getTime()) return { error: "Pick a time in the future.", code: "invalid" };
+  const end = new Date(start.getTime() + input.durationMinutes * MINUTE);
+  const busy = await prisma.interview.findMany({
+    where: {
+      id: { not: id },
+      interviewerAdminId: input.interviewerAdminId,
+      status: "scheduled",
+      scheduledAt: { lt: end, gte: new Date(start.getTime() - 240 * MINUTE) },
+    },
+    select: { scheduledAt: true, durationMinutes: true },
+  });
+  if (busy.some((b) => start < new Date(b.scheduledAt.getTime() + b.durationMinutes * MINUTE) && b.scheduledAt < end)) {
+    return { error: "The interviewer already has an interview at that time.", code: "conflict" };
+  }
+
+  const meetingUrl = input.meetingUrl || null;
+  const location = input.location || null;
+  const timeOrPlaceChanged =
+    current.scheduledAt.getTime() !== start.getTime() ||
+    current.durationMinutes !== input.durationMinutes ||
+    current.mode !== input.mode ||
+    current.meetingUrl !== meetingUrl ||
+    current.location !== location ||
+    current.interviewerAdminId !== input.interviewerAdminId;
+
+  try {
+    const updated = await prisma.interview.updateMany({
+      where: { id, status: "scheduled", updatedAt: current.updatedAt },
+      data: {
+        scheduledAt: start,
+        durationMinutes: input.durationMinutes,
+        mode: input.mode,
+        interviewerAdminId: input.interviewerAdminId,
+        meetingUrl,
+        location,
+        notes: input.notes || null,
+      },
+    });
+    if (updated.count !== 1) return { error: "This interview was just changed. Refresh and try again.", code: "conflict" };
+  } catch (error) {
+    if (isUniqueViolation(error)) return { error: "The interviewer already has an interview at that time.", code: "conflict" };
+    throw error;
+  }
+  return {
+    ok: true,
+    applicationId: current.applicationId,
+    timeOrPlaceChanged,
+    previousInterviewerId: current.interviewerAdminId !== input.interviewerAdminId ? current.interviewerAdminId : null,
+    previous: {
+      scheduledAt: current.scheduledAt,
+      durationMinutes: current.durationMinutes,
+      mode: current.mode,
+      meetingUrl: current.meetingUrl,
+      location: current.location,
+    },
+  };
+}
+
+/** The when/where of an interview at a point in time (for "this was cancelled" emails after an edit). */
+export type InterviewSnapshot = {
+  scheduledAt: Date;
+  durationMinutes: number;
+  mode: string;
+  meetingUrl: string | null;
+  location: string | null;
+};

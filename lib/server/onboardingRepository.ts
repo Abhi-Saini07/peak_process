@@ -195,7 +195,7 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function genderToDb(value: unknown): PrismaGender | null {
+export function genderToDb(value: unknown): PrismaGender | null {
   return typeof value === "string" && value in GENDER_TO_DB ? GENDER_TO_DB[value] : null;
 }
 
@@ -254,7 +254,7 @@ export async function savePersonalInfo(employeeId: string, data: unknown): Promi
   });
 }
 
-export async function saveReferences(employeeId: string, data: unknown): Promise<void> {
+export async function saveReferences(employeeId: string, data: unknown, db: Prisma.TransactionClient = prisma): Promise<void> {
   const d = (data ?? {}) as Record<string, Record<string, unknown> | undefined>;
 
   for (const [type, ref] of [
@@ -262,7 +262,7 @@ export async function saveReferences(employeeId: string, data: unknown): Promise
     ["secondary", d.secondaryReference],
   ] as const) {
     const r = ref ?? {};
-    await prisma.employeeReference.upsert({
+    await db.employeeReference.upsert({
       where: { employeeId_referenceType: { employeeId, referenceType: type } },
       create: {
         employeeId,
@@ -284,7 +284,7 @@ export async function saveReferences(employeeId: string, data: unknown): Promise
   }
 }
 
-export async function saveEmergencyContact(employeeId: string, data: unknown): Promise<void> {
+export async function saveEmergencyContact(employeeId: string, data: unknown, db: Prisma.TransactionClient = prisma): Promise<void> {
   const d = (data ?? {}) as Record<string, unknown>;
   const payload = {
     name: str(d.name),
@@ -294,20 +294,22 @@ export async function saveEmergencyContact(employeeId: string, data: unknown): P
     sameAsHomeAddress: Boolean(d.sameAsHomeAddress),
     address: str(d.address),
   };
-  await prisma.emergencyContact.upsert({
+  await db.emergencyContact.upsert({
     where: { employeeId },
     create: { employeeId, ...payload },
     update: payload,
   });
 }
 
-export async function saveHealthInsurance(employeeId: string, data: unknown): Promise<void> {
+export async function saveHealthInsurance(employeeId: string, data: unknown, db?: Prisma.TransactionClient): Promise<void> {
   const d = (data ?? {}) as Record<string, unknown>;
   const coverageType = coverageToDb(d.coverageType);
   const dependents = Array.isArray(d.dependents) ? d.dependents.slice(0, 5) : [];
 
-  await prisma.$transaction([
-    prisma.healthInsurance.upsert({
+  // Three writes that must land together: inside the caller's transaction
+  // when given one, else in a short one of our own.
+  const write = async (tx: Prisma.TransactionClient) => {
+    await tx.healthInsurance.upsert({
       where: { employeeId },
       create: {
         employeeId,
@@ -320,24 +322,24 @@ export async function saveHealthInsurance(employeeId: string, data: unknown): Pr
         nomineeName: str(d.nomineeName),
         nomineeRelationship: str(d.nomineeRelationship),
       },
-    }),
-    prisma.healthInsuranceDependent.deleteMany({ where: { employeeId } }),
-    ...(dependents.length > 0
-      ? [
-          prisma.healthInsuranceDependent.createMany({
-            data: dependents.map((dep) => {
-              const dd = (dep ?? {}) as Record<string, unknown>;
-              return {
-                employeeId,
-                name: String(dd.name ?? ""),
-                relationship: String(dd.relationship ?? ""),
-                dateOfBirth: parseDateOnly(String(dd.dateOfBirth ?? "")) ?? new Date(0),
-              };
-            }),
-          }),
-        ]
-      : []),
-  ]);
+    });
+    await tx.healthInsuranceDependent.deleteMany({ where: { employeeId } });
+    if (dependents.length > 0) {
+      await tx.healthInsuranceDependent.createMany({
+        data: dependents.map((dep) => {
+          const dd = (dep ?? {}) as Record<string, unknown>;
+          return {
+            employeeId,
+            name: String(dd.name ?? ""),
+            relationship: String(dd.relationship ?? ""),
+            dateOfBirth: parseDateOnly(String(dd.dateOfBirth ?? "")) ?? new Date(0),
+          };
+        }),
+      });
+    }
+  };
+  if (db) await write(db);
+  else await prisma.$transaction(write);
 }
 
 const STEP_SAVERS: Record<Exclude<SavableStepId, "documents">, (employeeId: string, data: unknown) => Promise<void>> = {

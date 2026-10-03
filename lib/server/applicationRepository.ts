@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db/prisma";
 import { deleteStoredFile, readStoredFile, saveUploadedFile, type SavedFileMeta } from "@/lib/server/fileStorage";
 import { applicationReferenceFromId } from "@/lib/recruitment/reference";
 import { isJobOpenForApplications } from "@/lib/server/jobRepository";
-import type { JobApplicationFormData } from "@/lib/schemas/application.schema";
+import type { CandidateDetailsInput, JobApplicationFormData } from "@/lib/schemas/application.schema";
+import { logAdminAction } from "@/lib/server/auditLog";
 import type { ApplicationStatus as AppStatus } from "@/lib/recruitment/constants";
 import { canTransition, GUARDED_STAGES } from "@/lib/recruitment/stages";
 import type { RejectInput } from "@/lib/recruitment/rejection";
@@ -107,6 +108,8 @@ function mapDetail(app: ApplicationWithRelations, notes: NoteWithAuthor[]): Appl
     ...mapSummary(app),
     jobId: app.jobId,
     jobTitle: app.job.title,
+    firstName: app.candidate.firstName,
+    lastName: app.candidate.lastName,
     location: app.candidate.location,
     education: app.candidate.education,
     linkedinUrl: app.candidate.linkedinUrl,
@@ -355,3 +358,49 @@ export async function getApplicationDocumentForDownload(
 }
 
 export { readStoredFile };
+
+// ---------------------------------------------------------------------------
+// HR edits to the candidate's details
+// ---------------------------------------------------------------------------
+
+/**
+ * Corrects the candidate's contact and profile details. The candidate row is
+ * shared by all their applications, so the change shows on each of them.
+ * Audited; an email already used by another candidate is refused.
+ */
+export async function updateCandidateDetails(
+  applicationId: string,
+  input: CandidateDetailsInput,
+  adminId: string,
+): Promise<{ ok: true } | { error: string; code: "not_found" | "conflict" }> {
+  const app = await prisma.jobApplication.findUnique({ where: { id: applicationId }, select: { candidateId: true } });
+  if (!app) return { error: "Application not found", code: "not_found" };
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.candidate.update({
+        where: { id: app.candidateId },
+        data: {
+          firstName: input.firstName,
+          lastName: input.lastName,
+          email: input.email,
+          phone: input.phone || null,
+          location: input.location || null,
+          experienceYears: input.experienceYears ?? null,
+          education: input.education || null,
+          linkedinUrl: input.linkedinUrl || null,
+          portfolioUrl: input.portfolioUrl || null,
+        },
+      });
+      await logAdminAction(
+        { actorAdminId: adminId, action: "candidate.update", entity: "candidate", entityId: app.candidateId, meta: { applicationId } },
+        tx,
+      );
+    });
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { error: "Another candidate already uses this email.", code: "conflict" };
+    }
+    throw error;
+  }
+}

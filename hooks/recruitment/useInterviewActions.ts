@@ -9,6 +9,7 @@ import {
   type InterviewStatus,
 } from "@/lib/recruitment/interviews";
 import { requestJson } from "@/lib/utils/requestJson";
+import type { InterviewRow } from "@/lib/server/interviewRepository";
 
 type FieldErrors = Partial<Record<string, string>>;
 
@@ -39,15 +40,24 @@ function commonDefaults(defaultInterviewerId: string): CommonValues {
   return { interviewerAdminId: defaultInterviewerId, durationMinutes: 45, mode: "video", meetingUrl: "", location: "" };
 }
 
+/** An ISO instant as a datetime-local value in the browser's own timezone. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /**
- * "Schedule interview": a time picked in the admin's own timezone
- * (datetime-local), sent as an ISO instant and checked with the same Zod
- * schema as the API.
+ * "Schedule interview" and "Edit interview": a time picked in the admin's
+ * own timezone (datetime-local), sent as an ISO instant and checked with the
+ * same Zod schema as the API. Editing PUTs to the interview itself.
  */
 export function useManualInterviewForm(applicationId: string, defaultInterviewerId: string) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [values, setValues] = useState({ ...commonDefaults(defaultInterviewerId), localDateTime: "", notes: "", notifyCandidate: true });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const blank = () => ({ ...commonDefaults(defaultInterviewerId), localDateTime: "", notes: "", notifyCandidate: true });
+  const [values, setValues] = useState(blank);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,7 +75,9 @@ export function useManualInterviewForm(applicationId: string, defaultInterviewer
       return;
     }
     setIsSubmitting(true);
-    const result = await requestJson(`/api/admin/applications/${applicationId}/interviews`, "POST", parsed.data);
+    const result = editingId
+      ? await requestJson(`/api/admin/interviews/${editingId}`, "PUT", parsed.data)
+      : await requestJson(`/api/admin/applications/${applicationId}/interviews`, "POST", parsed.data);
     setIsSubmitting(false);
     if (!result.ok) {
       setErrors({ form: result.error });
@@ -77,8 +89,25 @@ export function useManualInterviewForm(applicationId: string, defaultInterviewer
 
   return {
     isOpen,
+    isEditing: editingId !== null,
     open: () => {
-      setValues({ ...commonDefaults(defaultInterviewerId), localDateTime: "", notes: "", notifyCandidate: true });
+      setEditingId(null);
+      setValues(blank());
+      setErrors({});
+      setIsOpen(true);
+    },
+    openForEdit: (row: InterviewRow) => {
+      setEditingId(row.id);
+      setValues({
+        interviewerAdminId: row.interviewerAdminId,
+        durationMinutes: row.durationMinutes,
+        mode: row.mode as InterviewMode,
+        meetingUrl: row.meetingUrl ?? "",
+        location: row.location ?? "",
+        localDateTime: toLocalInput(row.scheduledAt),
+        notes: row.notes ?? "",
+        notifyCandidate: true,
+      });
       setErrors({});
       setIsOpen(true);
     },

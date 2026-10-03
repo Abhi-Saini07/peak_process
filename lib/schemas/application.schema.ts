@@ -76,3 +76,24 @@ export type JobApplicationWithKnockoutsData = JobApplicationFormData & {
  *  it (aria-hidden, tabIndex -1, autoComplete off); bots that fill every input
  *  do, and the API then answers with a fake success and saves nothing. */
 export const HONEYPOT_FIELD = "company_website";
+
+/**
+ * HR correcting a candidate's details after they applied. Same rules as the
+ * public form, but only name and email are required: HR may not know the rest.
+ */
+export const candidateDetailsSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required").max(100),
+  lastName: z.string().trim().min(1, "Last name is required").max(100),
+  email: z.email("Enter a valid email address").max(255),
+  phone: z.string().trim().regex(/^\+?[0-9\s-]{10,15}$/, "Enter a valid phone number").or(z.literal("")),
+  location: z.string().trim().max(150),
+  experienceYears: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null ? null : Number(val)),
+    z.number("Enter a number of years").int().min(0, "At least 0").max(60, "At most 60").nullable(),
+  ),
+  education: educationLevelSchema.or(z.literal("")),
+  linkedinUrl: z.url("Enter a valid URL").max(500).or(z.literal("")),
+  portfolioUrl: z.url("Enter a valid URL").max(500).or(z.literal("")),
+});
+export type CandidateDetailsInput = z.output<typeof candidateDetailsSchema>;
+export type CandidateDetailsFormInput = z.input<typeof candidateDetailsSchema>;

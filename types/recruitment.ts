@@ -126,6 +126,8 @@ export interface ApplicationDocumentMeta {
 export interface ApplicationDetail extends ApplicationSummary {
   jobId: string;
   jobTitle: string;
+  firstName: string;
+  lastName: string;
   location: string | null;
   education: string | null;
   linkedinUrl: string | null;

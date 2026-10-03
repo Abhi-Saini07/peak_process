@@ -15,6 +15,7 @@ import { InterviewEmail, type InterviewEmailKind } from "@/lib/email/templates/I
 import { SchedulingInviteEmail } from "@/lib/email/templates/SchedulingInviteEmail";
 import { interviewModeLabel } from "@/lib/recruitment/interviews";
 import { formatDayLabel, formatInTimeZone, officeTimeZone } from "@/lib/recruitment/timezones";
+import type { InterviewSnapshot } from "@/lib/server/interviewRepository";
 
 /**
  * Transactional emails for the recruitment and onboarding flows. Every
@@ -218,7 +219,15 @@ export function notifyOnboardingSubmitted(employeeId: string): Promise<void> {
 export function notifyInterview(
   interviewId: string,
   kind: InterviewEmailKind,
-  options: { scheduleToken?: string | null; notifyCandidate?: boolean; notifyInterviewer?: boolean } = {},
+  options: {
+    scheduleToken?: string | null;
+    notifyCandidate?: boolean;
+    notifyInterviewer?: boolean;
+    /** Send the interviewer email to this admin instead (e.g. the one taken off the interview). */
+    interviewerAdminId?: string;
+    /** Describe the interview as it was (e.g. the old time, for a cancellation after an edit). */
+    asWas?: InterviewSnapshot;
+  } = {},
 ): Promise<void> {
   return safely(`interview_${kind}`, async () => {
     const interview = await prisma.interview.findUnique({
@@ -231,15 +240,16 @@ export function notifyInterview(
     if (!interview) return;
     const { candidate, job } = interview.application;
     const candidateName = `${candidate.firstName} ${candidate.lastName}`.trim();
+    const details = options.asWas ?? interview;
     const common = {
       kind,
       candidateName,
       jobTitle: job.title,
-      when: formatInTimeZone(interview.scheduledAt, officeTimeZone()),
-      durationMinutes: interview.durationMinutes,
-      modeLabel: interviewModeLabel(interview.mode),
-      meetingUrl: interview.meetingUrl,
-      location: interview.location,
+      when: formatInTimeZone(details.scheduledAt, officeTimeZone()),
+      durationMinutes: details.durationMinutes,
+      modeLabel: interviewModeLabel(details.mode),
+      meetingUrl: details.meetingUrl,
+      location: details.location,
     };
     const template: EmailTemplate = `interview_${kind}`;
     const token = options.scheduleToken;
@@ -260,13 +270,16 @@ export function notifyInterview(
         ),
       });
     }
-    if (options.notifyInterviewer !== false) {
+    const interviewer = options.interviewerAdminId
+      ? await prisma.adminUser.findUnique({ where: { id: options.interviewerAdminId }, select: { fullName: true, email: true } })
+      : interview.interviewer;
+    if (options.notifyInterviewer !== false && interviewer) {
       await deliver({
         template,
         applicationId: interview.applicationId,
-        to: interview.interviewer.email,
+        to: interviewer.email,
         subject: `Interview ${kind}: ${candidateName} (${job.title})`,
-        react: <InterviewEmail {...common} audience="interviewer" recipientName={interview.interviewer.fullName.split(" ")[0] || "there"} />,
+        react: <InterviewEmail {...common} audience="interviewer" recipientName={interviewer.fullName.split(" ")[0] || "there"} />,
       });
     }
   });

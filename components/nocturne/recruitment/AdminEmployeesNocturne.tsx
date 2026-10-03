@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Copy, Eye, EyeOff, FileText, Link2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Copy, Pencil, Eye, EyeOff, FileText, Link2, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { formatBytes } from "@/lib/utils/formatBytes";
 import { useGovernmentIdReveal, useOnboardingLinkReissue } from "@/hooks/recruitment/useEmployeeRecord";
@@ -394,7 +394,15 @@ export function AdminEmployeeDetailNocturne({ employee, timeZone }: { employee: 
             )}
           </>
         }
-        action={<EmployeeStatusPill status={employee.status} />}
+        action={
+          <>
+            <EmployeeStatusPill status={employee.status} />
+            <Link href={`/admin/${group}/${employee.id}/edit`} className={nocturneButtonVariants({ variant: "secondary", size: "sm" })}>
+              <Pencil className="size-4" aria-hidden />
+              Edit details
+            </Link>
+          </>
+        }
       />
 
       <div className="mt-7 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Check, ExternalLink, FileText, Flag } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, FileText, Flag, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { applicationStatusLabel, educationLabel } from "@/lib/recruitment/constants";
 import { availableNextStatuses, useApplicationStatusActions } from "@/hooks/recruitment/useApplicationStatusActions";
@@ -12,6 +12,8 @@ import { ApplicationActivityNocturne } from "@/components/nocturne/recruitment/A
 import { isQualifyingAnswer } from "@/lib/recruitment/knockouts";
 import { RejectReasonDialog } from "@/components/nocturne/recruitment/RejectReasonDialog";
 import { useHireAction, useOfferForm } from "@/hooks/recruitment/useOfferActions";
+import { useCandidateEdit } from "@/hooks/recruitment/useCandidateEdit";
+import { CandidateEditDialog } from "@/components/nocturne/recruitment/CandidateEditDialog";
 import {
   ApplicationOfferPanelNocturne,
   OfferDialogNocturne,
@@ -83,6 +85,7 @@ export function AdminApplicationDetailNocturne({
   const rejectPicker = useRejectReasonPicker((input, { notifyCandidate }) => setStatus("rejected", input, notifyCandidate));
   const offerForm = useOfferForm(application.id, application.offer?.details ?? null);
   const hire = useHireAction(application.id);
+  const candidateEdit = useCandidateEdit(application);
 
   return (
     <div>
@@ -109,7 +112,13 @@ export function AdminApplicationDetailNocturne({
       <div className="mt-7 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-4">
           <section className={cn(adminPanelClass, "px-4 py-5.5 sm:px-6.5")}>
-            <PanelTitle>Candidate information</PanelTitle>
+            <div className="flex items-center justify-between gap-3">
+              <PanelTitle>Candidate information</PanelTitle>
+              <button type="button" onClick={candidateEdit.open} className={nocturneButtonVariants({ variant: "secondary", size: "sm" })}>
+                <Pencil className="size-4" aria-hidden />
+                Edit
+              </button>
+            </div>
             <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
               <InfoRow label="Email" value={application.email} />
               <InfoRow label="Phone" value={application.phone} mono />
@@ -301,6 +310,7 @@ export function AdminApplicationDetailNocturne({
 
       <RejectReasonDialog picker={rejectPicker} candidateName={application.candidateName} serverError={error} />
       <OfferDialogNocturne form={offerForm} candidateName={application.candidateName} />
+      <CandidateEditDialog edit={candidateEdit} candidateName={application.candidateName} />
     </div>
   );
 }

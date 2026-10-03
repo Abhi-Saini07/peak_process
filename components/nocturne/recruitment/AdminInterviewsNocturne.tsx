@@ -1,10 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { groupByDay } from "@/lib/recruitment/interviews";
 import type { InterviewRow, ScheduleInviteRow } from "@/lib/server/interviewRepository";
-import { useInterviewRowActions } from "@/hooks/recruitment/useInterviewActions";
-import { InterviewItem, InviteItem } from "@/components/nocturne/recruitment/ApplicationInterviewsNocturne";
+import { useInterviewRowActions, useManualInterviewForm } from "@/hooks/recruitment/useInterviewActions";
+import {
+  InterviewItem,
+  InviteItem,
+  ManualInterviewDialog,
+  type InterviewerOption,
+} from "@/components/nocturne/recruitment/ApplicationInterviewsNocturne";
+import type { InterviewRow as Row } from "@/lib/server/interviewRepository";
 import { AdminPageHeading, adminCardTitleClass, adminPanelClass } from "@/components/nocturne/recruitment/AdminShellNocturne";
 
 /** /admin/interviews: upcoming interviews by office day, then links still waiting on candidates. */
@@ -13,13 +20,21 @@ export function AdminInterviewsNocturne({
   invites,
   timeZone,
   now,
+  interviewers,
 }: {
   interviews: InterviewRow[];
   invites: ScheduleInviteRow[];
   timeZone: string;
   now: number;
+  interviewers: InterviewerOption[];
 }) {
   const actions = useInterviewRowActions();
+  const edit = useManualInterviewForm("", interviewers[0]?.id ?? "");
+  const [editingName, setEditingName] = useState("");
+  const startEdit = (row: Row) => {
+    setEditingName(row.candidateName);
+    edit.openForEdit(row);
+  };
   const days = groupByDay(interviews, timeZone, now);
   return (
     <div>
@@ -46,7 +61,7 @@ export function AdminInterviewsNocturne({
               <h3 className="text-sm font-bold text-nocturne-ink">{day.label}</h3>
               <ul className="flex flex-col gap-2">
                 {day.items.map((i) => (
-                  <InterviewItem key={i.id} interview={i} timeZone={timeZone} actions={actions} now={now} showCandidate />
+                  <InterviewItem key={i.id} interview={i} timeZone={timeZone} actions={actions} now={now} showCandidate onEdit={startEdit} />
                 ))}
               </ul>
             </div>
@@ -65,6 +80,7 @@ export function AdminInterviewsNocturne({
           )}
         </section>
       </div>
+      <ManualInterviewDialog form={edit} interviewers={interviewers} candidateName={editingName} />
     </div>
   );
 }
