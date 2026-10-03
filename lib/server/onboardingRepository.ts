@@ -53,7 +53,7 @@ const COVERAGE_TO_DB: Record<string, PrismaCoverageType> = {
   "self-family": "self_family",
 };
 
-const EMPLOYEE_WITH_RELATIONS = {
+export const EMPLOYEE_WITH_RELATIONS = {
   include: {
     personalInformation: true,
     references: true,
@@ -63,7 +63,7 @@ const EMPLOYEE_WITH_RELATIONS = {
   },
 } satisfies Prisma.EmployeeDefaultArgs;
 
-type EmployeeWithRelations = Prisma.EmployeeGetPayload<typeof EMPLOYEE_WITH_RELATIONS>;
+export type EmployeeWithRelations = Prisma.EmployeeGetPayload<typeof EMPLOYEE_WITH_RELATIONS>;
 
 /** Undefined (not null) for an empty/absent value, so the shallow merge in
  *  useOnboardingForm's defaultValues falls back to the section's own
@@ -72,7 +72,8 @@ function nonEmpty<T extends object>(value: T, hasAnyField: boolean): T | undefin
   return hasAnyField ? value : undefined;
 }
 
-function mapSnapshot(employee: EmployeeWithRelations): OnboardingDataSnapshot {
+/** The onboarding snapshot for an employee loaded with EMPLOYEE_WITH_RELATIONS. Decrypts government IDs: server-only. */
+export function mapSnapshot(employee: EmployeeWithRelations): OnboardingDataSnapshot {
   const pi = employee.personalInformation;
   const primaryRef = employee.references.find((r) => r.referenceType === "primary");
   const secondaryRef = employee.references.find((r) => r.referenceType === "secondary");

@@ -7,7 +7,7 @@ import {
   healthInsuranceSchema,
 } from "@/lib/schemas/onboardingSchema";
 import { DOCUMENT_REQUIREMENTS } from "./documents.config";
-import { stepRegistry } from "./steps.config";
+import { STEP_META as stepRegistry } from "./steps.meta";
 
 function isDocumentsStepComplete(state: OnboardingDataSnapshot): boolean {
   return DOCUMENT_REQUIREMENTS.filter((doc) => doc.required).every((doc) => {

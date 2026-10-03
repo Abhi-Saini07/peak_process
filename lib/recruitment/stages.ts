@@ -2,16 +2,18 @@ import type { ApplicationStatus } from "./constants";
 
 /**
  * The one place that decides which application status moves are legal.
- * Forward path: applied → under_review → shortlisted → interview → selected,
- * one step at a time. "rejected" is reachable from any non-terminal stage.
- * "selected" and "rejected" are terminal. Used by the status API route (422
- * on anything else), the detail-page actions and the Kanban board.
+ * Forward path: applied → under_review → shortlisted → interview → offered →
+ * selected (hired), one step at a time. "rejected" is reachable from any
+ * non-terminal stage. "selected" and "rejected" are terminal. Used by the
+ * status API route (422 on anything else), the detail-page actions and the
+ * Kanban board.
  */
 export const STAGE_TRANSITIONS: Readonly<Record<ApplicationStatus, readonly ApplicationStatus[]>> = {
   applied: ["under_review", "rejected"],
   under_review: ["shortlisted", "rejected"],
   shortlisted: ["interview", "rejected"],
-  interview: ["selected", "rejected"],
+  interview: ["offered", "rejected"],
+  offered: ["selected", "rejected"],
   selected: [],
   rejected: [],
 };
@@ -22,6 +24,7 @@ export const STAGE_ORDER: readonly ApplicationStatus[] = [
   "under_review",
   "shortlisted",
   "interview",
+  "offered",
   "selected",
   "rejected",
 ];
@@ -37,4 +40,19 @@ export function isTerminalStage(status: ApplicationStatus): boolean {
 /** Legal next statuses from `from`, forward step first, "rejected" last. */
 export function nextStages(from: ApplicationStatus): readonly ApplicationStatus[] {
   return STAGE_TRANSITIONS[from];
+}
+
+/**
+ * Stages that can only be entered through their own flow, never by a plain
+ * status change or a Kanban drop: "offered" needs the offer form (salary,
+ * dates), and "selected" needs "Mark as hired" (creates the Employee).
+ */
+export const GUARDED_STAGES: Readonly<Partial<Record<ApplicationStatus, "offer" | "hire">>> = {
+  offered: "offer",
+  selected: "hire",
+};
+
+/** A legal move that a plain status change (or a board drop) may make. */
+export function canMoveDirectly(from: ApplicationStatus, to: ApplicationStatus): boolean {
+  return canTransition(from, to) && !GUARDED_STAGES[to];
 }

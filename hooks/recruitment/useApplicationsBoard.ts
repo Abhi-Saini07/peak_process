@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ApplicationStatus } from "@/lib/recruitment/constants";
-import { canTransition } from "@/lib/recruitment/stages";
+import { canMoveDirectly } from "@/lib/recruitment/stages";
 import { BOARD_COLUMNS, groupIntoColumns } from "@/lib/recruitment/board";
 import type { RejectInput } from "@/lib/recruitment/rejection";
 import { applicationStatusLabel } from "@/lib/recruitment/constants";
@@ -80,7 +80,7 @@ export function useApplicationsBoard(applications: readonly ApplicationSummary[]
   /** Called on drop. Ignores drops the stage rules don't allow. */
   function moveCard(id: string, to: ApplicationStatus) {
     const app = items.find((item) => item.id === id);
-    if (!app || pendingIds.has(id) || !canTransition(app.status, to)) return;
+    if (!app || pendingIds.has(id) || !canMoveDirectly(app.status, to)) return;
     if (to === "rejected") {
       setRejectTarget(app);
       rejectPicker.open();

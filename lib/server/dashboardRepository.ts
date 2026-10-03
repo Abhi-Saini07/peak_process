@@ -1,15 +1,18 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { parseOfferDetails } from "@/lib/recruitment/offers";
 import type { ApplicationStatus } from "@/lib/recruitment/constants";
 import { STAGE_WARNING_DAYS } from "@/lib/recruitment/board";
 import {
   compareCounts,
   jobHealth,
   needsAttention,
+  rankOffers,
   startOfMonthUTC,
   weekWindows,
   type JobHealth,
+  type OfferInFlight,
   type StuckApplication,
   type Trend,
 } from "@/lib/recruitment/dashboard-metrics";
@@ -179,4 +182,34 @@ export async function getJobHealth(now: number): Promise<JobHealth[]> {
       now,
     ),
   );
+}
+
+/** Every application currently in "offered", with its age. */
+export async function getOffersInFlight(now: number): Promise<OfferInFlight[]> {
+  const rows = await prisma.jobApplication.findMany({
+    where: { status: "offered" },
+    select: {
+      id: true,
+      offerDetails: true,
+      offerSentAt: true,
+      job: { select: { title: true } },
+      candidate: { select: { firstName: true, lastName: true } },
+    },
+  });
+  const items = rows.flatMap((r) => {
+    const details = parseOfferDetails(r.offerDetails);
+    if (!details || !r.offerSentAt) return [];
+    return [
+      {
+        id: r.id,
+        candidateName: candidateName(r.candidate),
+        jobTitle: r.job.title,
+        sentAt: r.offerSentAt.toISOString(),
+        expiresOn: details.expiresOn,
+        salary: details.salary,
+        currency: details.currency,
+      },
+    ];
+  });
+  return rankOffers(items, now);
 }

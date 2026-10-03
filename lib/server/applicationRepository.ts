@@ -7,9 +7,10 @@ import { applicationReferenceFromId } from "@/lib/recruitment/reference";
 import { isJobOpenForApplications } from "@/lib/server/jobRepository";
 import type { JobApplicationFormData } from "@/lib/schemas/application.schema";
 import type { ApplicationStatus as AppStatus } from "@/lib/recruitment/constants";
-import { canTransition } from "@/lib/recruitment/stages";
+import { canTransition, GUARDED_STAGES } from "@/lib/recruitment/stages";
 import type { RejectInput } from "@/lib/recruitment/rejection";
 import type { NoteInput } from "@/lib/recruitment/notes";
+import { parseOfferDetails } from "@/lib/recruitment/offers";
 import {
   computeKnockoutFlag,
   parseStoredKnockoutAnswers,
@@ -94,6 +95,11 @@ function mapNote(note: NoteWithAuthor): ApplicationNoteEntry {
   };
 }
 
+function offerOf(app: { offerDetails: Prisma.JsonValue; offerSentAt: Date | null }): ApplicationDetail["offer"] {
+  const details = parseOfferDetails(app.offerDetails);
+  return details && app.offerSentAt ? { details, sentAt: toISO(app.offerSentAt) } : null;
+}
+
 function mapDetail(app: ApplicationWithRelations, notes: NoteWithAuthor[]): ApplicationDetail {
   return {
     ...mapSummary(app),
@@ -109,6 +115,8 @@ function mapDetail(app: ApplicationWithRelations, notes: NoteWithAuthor[]): Appl
     history: app.statusHistory.map(mapHistory),
     notes: notes.map(mapNote),
     knockoutAnswers: parseStoredKnockoutAnswers(app.knockoutAnswers),
+    offer: offerOf(app),
+    employeeId: app.employeeId,
   };
 }
 
@@ -290,6 +298,13 @@ export async function updateApplicationStatus(
   if (!app) return { error: "Application not found", code: "not_found" };
   if (!canTransition(app.status, newStatus)) {
     return { error: `Can't move an application from ${app.status} to ${newStatus}.`, code: "illegal_transition" };
+  }
+  const guarded = GUARDED_STAGES[newStatus];
+  if (guarded) {
+    return {
+      error: guarded === "offer" ? "Use the offer form to make an offer." : "Use “Mark as hired” to hire someone.",
+      code: "illegal_transition",
+    };
   }
 
   const now = new Date();

@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ApplicationStatus } from "@/lib/recruitment/constants";
-import { nextStages } from "@/lib/recruitment/stages";
+import { nextStages, GUARDED_STAGES } from "@/lib/recruitment/stages";
 import type { RejectInput } from "@/lib/recruitment/rejection";
 
-/** Which status buttons to show next. Comes straight from STAGE_TRANSITIONS,
- *  the same map the API enforces: one step forward, or "Reject". */
+/** Which plain status buttons to show next. Comes from STAGE_TRANSITIONS,
+ *  the same map the API enforces (one step forward, or "Reject"), minus the
+ *  stages with their own flow ("offered" via the offer form, "selected" via
+ *  "Mark as hired"), which the detail page offers separately. */
 export function availableNextStatuses(current: ApplicationStatus): readonly ApplicationStatus[] {
-  return nextStages(current);
+  return nextStages(current).filter((s) => !GUARDED_STAGES[s]);
 }
 
 /** PATCH the status. Resolves to true on success, so callers (the reject

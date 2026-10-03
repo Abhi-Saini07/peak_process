@@ -71,6 +71,7 @@ const APPLICATION_STATUS_PILL: Record<string, string> = {
   under_review: "bg-nocturne-gold-tint text-nocturne-gold",
   shortlisted: "bg-nocturne-accent-tint text-nocturne-accent-text",
   interview: "bg-nocturne-accent-tint text-nocturne-accent-text",
+  offered: "bg-nocturne-gold-tint text-nocturne-gold",
   selected: "bg-nocturne-success-tint text-nocturne-success",
   rejected: "bg-nocturne-error-tint text-nocturne-error",
 };
@@ -163,6 +164,10 @@ function crumbsFor(pathname: string): Crumb[] {
     return [root, postings, { label: "Edit job" }];
   }
   if (parts[1] === "applications") return [root, postings, { label: "Application" }];
+  if (parts[1] === "employees") {
+    const people: Crumb = { label: "Employees", href: "/admin/employees" };
+    return parts.length === 2 ? [{ label: "People" }, { label: "Employees" }] : [{ label: "People" }, people, { label: "Employee" }];
+  }
   if (parts.length === 1) return [root, { label: "Dashboard" }];
   return [root];
 }

@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils/cn";
 import { formatRelativeTime } from "@/lib/utils/formatRelativeTime";
 import { applicationStatusLabel } from "@/lib/recruitment/constants";
 import { stageAgeTone } from "@/lib/recruitment/board";
-import type { JobHealth, StuckApplication, Trend } from "@/lib/recruitment/dashboard-metrics";
+import type { JobHealth, OfferInFlight, StuckApplication, Trend } from "@/lib/recruitment/dashboard-metrics";
+import { formatMoney } from "@/lib/recruitment/offers";
+import { OfferAgeBadge } from "@/components/nocturne/recruitment/ApplicationOfferNocturne";
 import type { DashboardKpis, NewToReviewItem } from "@/lib/server/dashboardRepository";
 import {
   ScreeningFlagBadge,
@@ -239,6 +241,36 @@ export function NeedsAttentionWidget({ items, total }: { items: StuckApplication
 }
 
 /* ------------------------------------------------------------------ */
+/* Offers in flight                                                   */
+/* ------------------------------------------------------------------ */
+
+export function OffersInFlightWidget({ offers }: { offers: OfferInFlight[] }) {
+  return (
+    <Widget title="Offers in flight" description={offers.length === 0 ? undefined : `${offers.length} waiting on candidates`}>
+      {offers.length === 0 ? (
+        <EmptyState title="No open offers" body="Offers you send show up here until the person is hired or declines." />
+      ) : (
+        <ul className="border-t border-nocturne-border">
+          {offers.map((o) => (
+            <li key={o.id} className="border-b border-nocturne-border last:border-b-0">
+              <Link href={`/admin/applications/${o.id}`} className={rowLinkClass}>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-nocturne-ink">{o.candidateName}</span>
+                  <span className="block text-xs text-nocturne-ink-muted sm:truncate">
+                    {o.jobTitle} · {formatMoney(o.salary, o.currency)} · sent {o.daysOut === 0 ? "today" : `${o.daysOut}d ago`}
+                  </span>
+                </span>
+                <OfferAgeBadge age={o.age} className="shrink-0" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Widget>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Job health                                                         */
 /* ------------------------------------------------------------------ */
 
@@ -247,6 +279,7 @@ const STAGE_DOT: Record<string, string> = {
   under_review: "bg-nocturne-gold",
   shortlisted: "bg-nocturne-accent",
   interview: "bg-nocturne-accent-text",
+  offered: "bg-nocturne-gold",
   selected: "bg-nocturne-success",
   rejected: "bg-nocturne-error",
 };

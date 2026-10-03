@@ -2,7 +2,13 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requestNow } from "@/lib/server/clock";
-import { getDashboardKpis, getJobHealth, getNeedsAttention, getNewToReview } from "@/lib/server/dashboardRepository";
+import {
+  getDashboardKpis,
+  getJobHealth,
+  getNeedsAttention,
+  getNewToReview,
+  getOffersInFlight,
+} from "@/lib/server/dashboardRepository";
 import { AdminPageHeading } from "@/components/nocturne/recruitment/AdminShellNocturne";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import {
@@ -12,6 +18,7 @@ import {
   JobHealthWidget,
   NeedsAttentionWidget,
   NewToReviewWidget,
+  OffersInFlightWidget,
 } from "@/components/nocturne/recruitment/AdminDashboardNocturne";
 
 export const metadata: Metadata = { title: "Dashboard | Peak Process Partners" };
@@ -28,6 +35,10 @@ async function NewToReview({ now }: { now: number }) {
 async function NeedsAttention({ now }: { now: number }) {
   const { items, total } = await getNeedsAttention(now);
   return <NeedsAttentionWidget items={items} total={total} />;
+}
+
+async function OffersInFlight({ now }: { now: number }) {
+  return <OffersInFlightWidget offers={await getOffersInFlight(now)} />;
 }
 
 async function JobHealth({ now }: { now: number }) {
@@ -61,6 +72,9 @@ export default function AdminDashboardPage() {
             <NeedsAttention now={now} />
           </Suspense>
         </div>
+        <Suspense fallback={<DashboardListSkeleton title="Offers in flight" rows={2} />}>
+          <OffersInFlight now={now} />
+        </Suspense>
         <Suspense fallback={<DashboardListSkeleton title="Job health" rows={3} />}>
           <JobHealth now={now} />
         </Suspense>

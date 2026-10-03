@@ -29,7 +29,8 @@ export const APPLICATION_STATUS_OPTIONS = [
   { value: "under_review", label: "Under Review" },
   { value: "shortlisted", label: "Shortlisted" },
   { value: "interview", label: "Interview" },
-  { value: "selected", label: "Selected" },
+  { value: "offered", label: "Offered" },
+  { value: "selected", label: "Hired" },
   { value: "rejected", label: "Rejected" },
 ] as const;
 

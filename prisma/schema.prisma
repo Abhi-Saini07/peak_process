@@ -76,6 +76,12 @@ model Employee {
   emergencyContact    EmergencyContact?
   healthInsurance     HealthInsurance?
   documents           EmployeeDocument[]
+  /// The application this person was hired from (set by "Mark as hired").
+  /// Null for onboarding sessions that started without an application.
+  sourceApplicationId String?              @unique(map: "uq_employees_source_application") @map("source_application_id") @db.Char(36)
+  sourceApplication   JobApplication?      @relation("EmployeeSourceApplication", fields: [sourceApplicationId], references: [id], onDelete: SetNull)
+  hiredApplication    JobApplication?      @relation("ApplicationEmployee")
+  onboardingInvites   OnboardingInvite[]
 
   @@map("employees")
 }
@@ -230,6 +236,9 @@ enum ApplicationStatus {
   under_review
   shortlisted
   interview
+  /// Only entered through the offer form (POST .../offer), never a plain move.
+  offered
+  /// Hired. Only reachable from "offered", through "Mark as hired".
   selected
   rejected
 }
@@ -264,9 +273,11 @@ model AdminUser {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  jobsCreated   Job[]
-  statusChanges ApplicationStatusHistory[]
-  notes         ApplicationNote[]
+  jobsCreated    Job[]
+  statusChanges  ApplicationStatusHistory[]
+  notes          ApplicationNote[]
+  auditLogs      AdminAuditLog[]
+  invitesCreated OnboardingInvite[]
 
   @@map("admin_users")
 }
@@ -336,31 +347,39 @@ model Candidate {
 /// the same job. Only ever holds the CURRENT status; see
 /// ApplicationStatusHistory for the transition log.
 model JobApplication {
-  id              String            @id @default(uuid()) @db.Char(36)
-  jobId           String            @map("job_id") @db.Char(36)
-  candidateId     String            @map("candidate_id") @db.Char(36)
-  status          ApplicationStatus @default(applied)
-  coverLetter     String?           @map("cover_letter") @db.Text
-  appliedAt       DateTime          @default(now()) @map("applied_at") @db.Timestamptz(3)
-  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String            @id @default(uuid()) @db.Char(36)
+  jobId            String            @map("job_id") @db.Char(36)
+  candidateId      String            @map("candidate_id") @db.Char(36)
+  status           ApplicationStatus @default(applied)
+  coverLetter      String?           @map("cover_letter") @db.Text
+  appliedAt        DateTime          @default(now()) @map("applied_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
   /// When the application entered its current status (set on create and on
   /// every status change) — drives "days in stage".
-  stageEnteredAt  DateTime          @default(now()) @map("stage_entered_at") @db.Timestamptz(3)
+  stageEnteredAt   DateTime          @default(now()) @map("stage_entered_at") @db.Timestamptz(3)
   /// Set only while status = rejected (see lib/recruitment/rejection.ts).
   /// CHECK chk_job_applications_reject_reason (raw SQL in migration
   /// rejection_reasons_stage_rules) enforces that, and that "other" has a note.
-  rejectReason    RejectReason?     @map("reject_reason")
-  rejectNote      String?           @map("reject_note") @db.Text
+  rejectReason     RejectReason?     @map("reject_reason")
+  rejectNote       String?           @map("reject_note") @db.Text
   /// Snapshot of the job's screening questions with the candidate's answers:
   /// [{ id, label, qualifyingAnswer, answer }]. knockoutFlagged is computed on
   /// the server (computeKnockoutFlag) and never auto-rejects.
-  knockoutAnswers Json?             @map("knockout_answers")
-  knockoutFlagged Boolean           @default(false) @map("knockout_flagged")
+  knockoutAnswers  Json?             @map("knockout_answers")
+  knockoutFlagged  Boolean           @default(false) @map("knockout_flagged")
   /// When the applicant agreed to the privacy notice, and which version
   /// (PRIVACY_CONSENT_VERSION in lib/recruitment/consent.ts). Null on
   /// applications made before consent was collected.
-  consentedAt     DateTime?         @map("consented_at") @db.Timestamptz(3)
-  consentVersion  String?           @map("consent_version") @db.VarChar(20)
+  consentedAt      DateTime?         @map("consented_at") @db.Timestamptz(3)
+  consentVersion   String?           @map("consent_version") @db.VarChar(20)
+  /// Set with the move into "offered" (lib/recruitment/offers.ts):
+  /// { salary, currency, startDate, expiresOn, note }.
+  offerDetails     Json?             @map("offer_details")
+  offerSentAt      DateTime?         @map("offer_sent_at") @db.Timestamptz(3)
+  /// The Employee created by "Mark as hired". Unique: one hire per application.
+  employeeId       String?           @unique(map: "uq_job_applications_employee") @map("employee_id") @db.Char(36)
+  employee         Employee?         @relation("ApplicationEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  sourceOfEmployee Employee?         @relation("EmployeeSourceApplication")
 
   job           Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidate     Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
@@ -431,4 +450,41 @@ model ApplicationNote {
 
   @@index([applicationId, createdAt], map: "idx_application_notes_application_created")
   @@map("application_notes")
+}
+
+/// One-time link that binds a browser to a hired Employee's onboarding
+/// (/onboarding/start/[token]). Only the SHA-256 of the token is stored.
+model OnboardingInvite {
+  id               String    @id @default(uuid()) @db.Char(36)
+  employeeId       String    @map("employee_id") @db.Char(36)
+  tokenHash        String    @unique(map: "uq_onboarding_invites_token_hash") @map("token_hash") @db.Char(64)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt           DateTime? @map("used_at") @db.Timestamptz(3)
+  createdByAdminId String?   @map("created_by_admin_id") @db.Char(36)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  employee  Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdBy AdminUser? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId], map: "idx_onboarding_invites_employee")
+  @@map("onboarding_invites")
+}
+
+/// Append-only record of sensitive admin actions (revealing government IDs,
+/// hiring, team changes...). action is a dotted verb such as
+/// "employee.reveal_ids"; entity/entityId name what it was done to.
+model AdminAuditLog {
+  id           String   @id @default(uuid()) @db.Char(36)
+  actorAdminId String?  @map("actor_admin_id") @db.Char(36)
+  action       String   @db.VarChar(64)
+  entity       String   @db.VarChar(64)
+  entityId     String?  @map("entity_id") @db.VarChar(64)
+  meta         Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor AdminUser? @relation(fields: [actorAdminId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId], map: "idx_admin_audit_log_entity")
+  @@index([createdAt], map: "idx_admin_audit_log_created")
+  @@map("admin_audit_log")
 }

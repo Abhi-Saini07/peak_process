@@ -18,7 +18,7 @@ import {
 import { ArrowRight, ChevronsLeftRight, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { applicationStatusLabel, type ApplicationStatus } from "@/lib/recruitment/constants";
-import { canTransition } from "@/lib/recruitment/stages";
+import { canMoveDirectly } from "@/lib/recruitment/stages";
 import { daysSince, dropTargetsFor, stageAgeTone, type StageAgeTone } from "@/lib/recruitment/board";
 import { useApplicationsBoard } from "@/hooks/recruitment/useApplicationsBoard";
 import { RejectReasonDialog } from "@/components/nocturne/recruitment/RejectReasonDialog";
@@ -250,7 +250,7 @@ export function AdminApplicationsBoardNocturne({
       if (!over) return `${nameOf(a.id)} is not over a column.`;
       const from = statusOf(a.id);
       const to = over.id as ApplicationStatus;
-      const allowed = from ? canTransition(from, to) : false;
+      const allowed = from ? canMoveDirectly(from, to) : false;
       return `${nameOf(a.id)} is over ${applicationStatusLabel(to)}${allowed ? "" : ", which isn't allowed from here"}.`;
     },
     onDragEnd: ({ active: a, over }) =>

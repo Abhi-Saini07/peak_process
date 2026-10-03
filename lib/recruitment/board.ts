@@ -1,5 +1,5 @@
 import type { ApplicationStatus } from "./constants";
-import { canTransition } from "./stages";
+import { canMoveDirectly } from "./stages";
 
 /**
  * Kanban board rules: column order, the per-column card limit and the
@@ -13,6 +13,7 @@ export const BOARD_COLUMNS: readonly BoardColumn[] = [
   { status: "under_review", collapsedByDefault: false },
   { status: "shortlisted", collapsedByDefault: false },
   { status: "interview", collapsedByDefault: false },
+  { status: "offered", collapsedByDefault: false },
   { status: "selected", collapsedByDefault: true },
   { status: "rejected", collapsedByDefault: true },
 ];
@@ -57,5 +58,5 @@ export function groupIntoColumns<T extends BoardItem>(items: readonly T[], limit
 
 /** Columns a card in `from` may be dropped on. */
 export function dropTargetsFor(from: ApplicationStatus): ApplicationStatus[] {
-  return BOARD_COLUMNS.map((c) => c.status).filter((to) => canTransition(from, to));
+  return BOARD_COLUMNS.map((c) => c.status).filter((to) => canMoveDirectly(from, to));
 }

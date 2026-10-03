@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { plusJakartaSans, sora } from "./fonts";
-import { OnboardingHydrator } from "@/lib/store/OnboardingHydrator";
 import { themeInitScript } from "@/lib/design/themeScript";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
@@ -24,7 +23,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen bg-nocturne-bg font-nocturne-ui text-nocturne-ink antialiased">
-        <OnboardingHydrator />
         {children}
       </body>
     </html>

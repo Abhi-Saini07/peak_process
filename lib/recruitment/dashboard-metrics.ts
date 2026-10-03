@@ -1,6 +1,7 @@
 import { applicationStatusLabel, type ApplicationStatus } from "./constants";
 import { daysSince, STAGE_WARNING_DAYS } from "./board";
 import { isTerminalStage, STAGE_ORDER } from "./stages";
+import { offerAge, type OfferAge } from "./offers";
 
 /**
  * Recruiter dashboard maths. Pure: lib/server/dashboardRepository.ts fetches
@@ -117,4 +118,25 @@ export function jobHealth(job: JobHealthInput, now: number): JobHealth {
     stages,
     warnings,
   };
+}
+
+export type OfferInFlightInput = {
+  id: string;
+  candidateName: string;
+  jobTitle: string;
+  sentAt: string;
+  expiresOn: string;
+  salary: number;
+  currency: string;
+};
+
+export type OfferInFlight = OfferInFlightInput & { age: OfferAge; daysOut: number };
+
+const AGE_URGENCY: Record<OfferAge, number> = { expired: 0, expiring: 1, stale: 2, aging: 3, fresh: 4 };
+
+/** Offers still out, most urgent first: expired, expiring, stale, aging, fresh; oldest first within each. */
+export function rankOffers(items: readonly OfferInFlightInput[], now: number): OfferInFlight[] {
+  return items
+    .map((o) => ({ ...o, age: offerAge(o.sentAt, o.expiresOn, now), daysOut: daysSince(o.sentAt, now) }))
+    .sort((a, b) => AGE_URGENCY[a.age] - AGE_URGENCY[b.age] || a.sentAt.localeCompare(b.sentAt));
 }

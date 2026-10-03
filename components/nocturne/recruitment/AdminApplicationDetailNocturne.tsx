@@ -11,6 +11,11 @@ import { useApplicationActivity } from "@/hooks/recruitment/useApplicationActivi
 import { ApplicationActivityNocturne } from "@/components/nocturne/recruitment/ApplicationActivityNocturne";
 import { isQualifyingAnswer } from "@/lib/recruitment/knockouts";
 import { RejectReasonDialog } from "@/components/nocturne/recruitment/RejectReasonDialog";
+import { useHireAction, useOfferForm } from "@/hooks/recruitment/useOfferActions";
+import {
+  ApplicationOfferPanelNocturne,
+  OfferDialogNocturne,
+} from "@/components/nocturne/recruitment/ApplicationOfferNocturne";
 import { nocturneButtonVariants } from "@/components/nocturne/ui/NocturneButton";
 import { formatBytes } from "@/lib/utils/formatBytes";
 import {
@@ -49,11 +54,13 @@ function PanelTitle({ children }: { children: string }) {
   return <h2 className={adminCardTitleClass}>{children}</h2>;
 }
 
-export function AdminApplicationDetailNocturne({ application }: { application: ApplicationDetail }) {
+export function AdminApplicationDetailNocturne({ application, now }: { application: ApplicationDetail; now: number }) {
   const { setStatus, isUpdating, error, clearError } = useApplicationStatusActions(application.id);
   const nextStatuses = availableNextStatuses(application.status);
   const activity = useApplicationActivity(application);
   const rejectPicker = useRejectReasonPicker((input) => setStatus("rejected", input));
+  const offerForm = useOfferForm(application.id, application.offer?.details ?? null);
+  const hire = useHireAction(application.id);
 
   return (
     <div>
@@ -259,10 +266,12 @@ export function AdminApplicationDetailNocturne({ application }: { application: A
             )}
           </section>
 
+          <ApplicationOfferPanelNocturne application={application} form={offerForm} hire={hire} now={now} />
         </aside>
       </div>
 
       <RejectReasonDialog picker={rejectPicker} candidateName={application.candidateName} serverError={error} />
+      <OfferDialogNocturne form={offerForm} candidateName={application.candidateName} />
     </div>
   );
 }

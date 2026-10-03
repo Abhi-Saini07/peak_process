@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Briefcase,
   Gauge,
+  Users,
   Check,
   ChevronsLeft,
   ChevronsRight,
@@ -115,9 +116,10 @@ function useNavSections(): NavSection[] {
           label: "Job postings",
           href: "/admin/jobs",
           icon: Briefcase,
-          isActive: (p) => p.startsWith("/admin/") && p !== "/admin/jobs/new",
+          isActive: (p) => (p.startsWith("/admin/jobs") || p.startsWith("/admin/applications")) && p !== "/admin/jobs/new",
         },
         { label: "Post a job", href: "/admin/jobs/new", icon: PlusCircle, isActive: (p) => p === "/admin/jobs/new" },
+        { label: "Employees", href: "/admin/employees", icon: Users, isActive: (p) => p.startsWith("/admin/employees") },
       ],
     },
   ];

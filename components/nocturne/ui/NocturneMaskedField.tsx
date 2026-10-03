@@ -16,6 +16,12 @@ interface NocturneMaskedFieldProps<T extends FieldValues> {
   required?: boolean;
   fullLength: number;
   placeholder?: string;
+  /** Display-only (admin views): never editable, masking still applies. */
+  readOnly?: boolean;
+  /** Start unmasked (e.g. right after an audited reveal). */
+  defaultRevealed?: boolean;
+  /** Show the eye button to toggle the mask (default true). */
+  allowToggle?: boolean;
 }
 
 function maskValue(value: string, fullLength: number): string {
@@ -33,8 +39,11 @@ export function NocturneMaskedField<T extends FieldValues>({
   required,
   fullLength,
   placeholder,
+  readOnly = false,
+  defaultRevealed = false,
+  allowToggle = true,
 }: NocturneMaskedFieldProps<T>) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(defaultRevealed);
   const [focused, setFocused] = useState(false);
 
   return (
@@ -61,7 +70,7 @@ export function NocturneMaskedField<T extends FieldValues>({
                   setFocused(false);
                   field.onBlur();
                 }}
-                readOnly={shouldMask}
+                readOnly={readOnly || shouldMask}
                 className={cn(
                   nocturneFieldInputVariants({ hasError: Boolean(error) }),
                   nocturneFieldHeightClass,
@@ -69,7 +78,7 @@ export function NocturneMaskedField<T extends FieldValues>({
                 )}
                 aria-invalid={Boolean(error)}
               />
-              {isComplete && (
+              {isComplete && allowToggle && (
                 <button
                   type="button"
                   onClick={() => setRevealed((r) => !r)}

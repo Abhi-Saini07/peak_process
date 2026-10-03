@@ -1,4 +1,5 @@
 import type { RejectReason } from "@/lib/recruitment/rejection";
+import type { OfferDetails } from "@/lib/recruitment/offers";
 import type { KnockoutAnswer, KnockoutQuestion, PublicKnockoutQuestion } from "@/lib/recruitment/knockouts";
 import type {
   ApplicationStatus,
@@ -125,4 +126,8 @@ export interface ApplicationDetail extends ApplicationSummary {
   history: ApplicationStatusHistoryEntry[];
   notes: ApplicationNoteEntry[];
   knockoutAnswers: KnockoutAnswer[];
+  /** Set once an offer has been made (status offered, or later). */
+  offer: { details: OfferDetails; sentAt: string } | null;
+  /** The Employee created when this person was hired. */
+  employeeId: string | null;
 }

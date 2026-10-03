@@ -1,8 +1,8 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { DocumentType, type Employee } from "@prisma/client";
+import type { Employee } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { DOCUMENT_REQUIREMENTS } from "@/lib/onboarding/documents.config";
+import { seedHrProvidedDocuments } from "@/lib/server/employeeDocuments";
 
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "ppp_session";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180; // 180 days — onboarding can be resumed later
@@ -15,9 +15,38 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180; // 180 days — onboarding ca
  * no signup step" while keeping the bearer credential distinct from the
  * row's internal id.
  */
-export async function getOrCreateEmployee(): Promise<Employee> {
+/** The browser's current onboarding session token, if any. */
+export async function readEmployeeSessionToken(): Promise<string | null> {
   const cookieStore = await cookies();
-  const existingToken = cookieStore.get(COOKIE_NAME)?.value;
+  return cookieStore.get(COOKIE_NAME)?.value ?? null;
+}
+
+/** Name, value and options of the session cookie for an Employee, for a
+ *  Route Handler that sets it on its own response (e.g. a redirect). */
+export function employeeSessionCookie(sessionToken: string) {
+  return {
+    name: COOKIE_NAME,
+    value: sessionToken,
+    options: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+      path: "/",
+      maxAge: COOKIE_MAX_AGE_SECONDS,
+    },
+  };
+}
+
+/** Binds this browser to an Employee: the cookie value is its sessionToken.
+ *  Only callable where cookies can be set (Route Handlers, Server Actions). */
+export async function setEmployeeSessionCookie(sessionToken: string): Promise<void> {
+  const cookieStore = await cookies();
+  const cookie = employeeSessionCookie(sessionToken);
+  cookieStore.set(cookie.name, cookie.value, cookie.options);
+}
+
+export async function getOrCreateEmployee(): Promise<Employee> {
+  const existingToken = await readEmployeeSessionToken();
 
   if (existingToken) {
     const employee = await prisma.employee.findUnique({ where: { sessionToken: existingToken } });
@@ -25,33 +54,7 @@ export async function getOrCreateEmployee(): Promise<Employee> {
   }
 
   const employee = await prisma.employee.create({ data: {} });
-
-  // The Offer Letter is issued by HR, not uploaded by the employee — seed
-  // it as already "provided" so the Documents step's completion check
-  // (identical logic to lib/onboarding/completion.ts on the client) sees
-  // it satisfied from day one, matching the old localStorage mock's
-  // seedState() behavior exactly.
-  const offerLetter = DOCUMENT_REQUIREMENTS.find((doc) => doc.providedByHR);
-  if (offerLetter) {
-    await prisma.employeeDocument.create({
-      data: {
-        employeeId: employee.id,
-        documentType: DocumentType.offerLetter,
-        fileName: "Offer_Letter_PeakProcessPartners.pdf",
-        fileSize: 0,
-        mimeType: "application/pdf",
-        status: "provided",
-        uploadedAt: new Date(),
-      },
-    });
-  }
-
-  cookieStore.set(COOKIE_NAME, employee.sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: COOKIE_MAX_AGE_SECONDS,
-  });
+  await seedHrProvidedDocuments(employee.id);
+  await setEmployeeSessionCookie(employee.sessionToken);
   return employee;
 }

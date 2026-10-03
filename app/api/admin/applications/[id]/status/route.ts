@@ -7,7 +7,7 @@ import { validateRejectInput, type RejectInput } from "@/lib/recruitment/rejecti
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
-  status: z.enum(["applied", "under_review", "shortlisted", "interview", "selected", "rejected"]),
+  status: z.enum(["applied", "under_review", "shortlisted", "interview", "offered", "selected", "rejected"]),
   rejectReason: z.unknown().optional(),
   rejectNote: z.unknown().optional(),
 });
